@@ -1,0 +1,119 @@
+const express = require('express');
+const router = express.Router();
+const jwt = require('jsonwebtoken');
+const Admin = require('../models/Admin');
+const Order = require('../models/Order');
+const Product = require('../models/Product');
+const Return = require('../models/Return');
+const authMiddleware = require('../middleware/auth');
+
+// ─── Admin Login ──────────────────────────────────────────────────────────
+router.post('/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password required' });
+    }
+
+    // Find admin
+    let admin = await Admin.findOne({ username });
+
+    // Bootstrap: create admin if none exists
+    if (!admin) {
+      if (
+        username === process.env.ADMIN_USERNAME &&
+        password === process.env.ADMIN_PASSWORD
+      ) {
+        admin = new Admin({ username, password, email: process.env.ADMIN_EMAIL });
+        await admin.save();
+      } else {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+    } else {
+      const isValid = await admin.comparePassword(password);
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+    }
+
+    admin.lastLogin = new Date();
+    await admin.save();
+
+    const token = jwt.sign(
+      { id: admin._id, username: admin.username },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({ token, username: admin.username });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// ─── Dashboard Stats ──────────────────────────────────────────────────────
+router.get('/dashboard', authMiddleware, async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [
+      totalOrders,
+      todayOrders,
+      revenueData,
+      todayRevenue,
+      pendingOrders,
+      totalProducts,
+      recentOrders,
+      ordersByStatus
+    ] = await Promise.all([
+      Order.countDocuments(),
+      Order.countDocuments({ createdAt: { $gte: today } }),
+      Order.aggregate([{ $group: { _id: null, total: { $sum: '$pricing.total' } } }]),
+      Order.aggregate([
+        { $match: { createdAt: { $gte: today } } },
+        { $group: { _id: null, total: { $sum: '$pricing.total' } } }
+      ]),
+      Order.countDocuments({ status: 'placed' }),
+      Product.countDocuments({ isActive: true }),
+      Order.find().sort({ createdAt: -1 }).limit(5),
+      Order.aggregate([
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ])
+    ]);
+
+    // Revenue last 7 days
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const dailyRevenue = await Order.aggregate([
+      { $match: { createdAt: { $gte: sevenDaysAgo } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          revenue: { $sum: '$pricing.total' },
+          orders: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    res.json({
+      stats: {
+        totalOrders,
+        todayOrders,
+        totalRevenue: revenueData[0]?.total || 0,
+        todayRevenue: todayRevenue[0]?.total || 0,
+        pendingOrders,
+        totalProducts
+      },
+      recentOrders,
+      ordersByStatus,
+      dailyRevenue
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch dashboard data' });
+  }
+});
+
+module.exports = router;
