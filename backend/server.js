@@ -9,6 +9,7 @@ require('dotenv').config();
 const app = express();
 
 // ─── Security Middleware ────────────────────────────────────────────────────
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(morgan('combined'));
 
