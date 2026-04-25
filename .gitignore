@@ -29,3 +29,7 @@ backend/uploads/*
 
 # Misc
 .cache/
+
+# Sensitive utility scripts
+backend/check-db.js
+backend/reset-admin.js
