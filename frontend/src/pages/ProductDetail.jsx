@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Heart, ShoppingBag, ZoomIn, Truck, RotateCcw, Star, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { useCart, useWishlist } from '../context/AppContext';
-import { productsApi } from '../utils/api';
+import { productsApi, getImageUrl } from '../utils/api';
 import toast from 'react-hot-toast';
 import Spinner from '../components/common/Spinner';
 
@@ -92,7 +92,7 @@ export default function ProductDetail() {
           {/* Main image */}
           <div className="relative aspect-square rounded-2xl overflow-hidden bg-blush-50 mb-3 cursor-zoom-in" onClick={() => setZoomOpen(true)}>
             <img
-              src={images[selectedImg]?.url || PLACEHOLDER}
+              src={getImageUrl(images[selectedImg]?.url) || PLACEHOLDER}
               alt={images[selectedImg]?.alt || product.name}
               className="w-full h-full object-cover"
               onError={e => { e.target.src = PLACEHOLDER; }}
@@ -122,7 +122,7 @@ export default function ProductDetail() {
               <button key={i} onClick={() => setSelectedImg(i)}
                 className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-colors
                   ${selectedImg === i ? 'border-blush-500' : 'border-transparent hover:border-blush-200'}`}>
-                <img src={img.url} alt="" className="w-full h-full object-cover" onError={e => { e.target.src = PLACEHOLDER; }} />
+                <img src={getImageUrl(img.url)} alt="" className="w-full h-full object-cover" onError={e => { e.target.src = PLACEHOLDER; }} />
               </button>
             ))}
             {product.videoUrl && (
@@ -249,7 +249,7 @@ export default function ProductDetail() {
       {/* Zoom Modal */}
       {zoomOpen && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setZoomOpen(false)}>
-          <img src={images[selectedImg]?.url || PLACEHOLDER} alt={product.name} className="max-w-full max-h-full rounded-xl object-contain" />
+          <img src={getImageUrl(images[selectedImg]?.url) || PLACEHOLDER} alt={product.name} className="max-w-full max-h-full rounded-xl object-contain" />
           <button className="absolute top-4 right-4 text-white bg-white/20 rounded-full p-2 hover:bg-white/30">✕</button>
         </div>
       )}

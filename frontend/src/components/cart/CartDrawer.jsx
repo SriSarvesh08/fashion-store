@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { X, Plus, Minus, ShoppingBag, Trash2 } from 'lucide-react';
 import { useCart } from '../../context/AppContext';
+import { getImageUrl } from '../../utils/api';
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=80&h=80&fit=crop';
 
@@ -78,7 +79,7 @@ export default function CartDrawer() {
                 <div key={`${item._id}-${item.size}-${item.color}-${idx}`}
                   className="flex gap-3 pb-4 border-b border-blush-50 last:border-0 animate-slide-up">
                   <img
-                    src={item.images?.[0]?.url || PLACEHOLDER}
+                    src={getImageUrl(item.images?.[0]?.url) || PLACEHOLDER}
                     alt={item.name}
                     className="w-16 h-16 object-cover rounded-xl flex-shrink-0 bg-blush-50"
                     onError={e => { e.target.src = PLACEHOLDER; }}

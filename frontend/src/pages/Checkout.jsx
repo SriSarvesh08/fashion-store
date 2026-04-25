@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, ChevronDown, Tag, X } from 'lucide-react';
 import { useCart } from '../context/AppContext';
-import { ordersApi, paymentsApi, couponsApi } from '../utils/api';
+import { ordersApi, paymentsApi, couponsApi, getImageUrl } from '../utils/api';
 import toast from 'react-hot-toast';
 
 const STATES = ['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Delhi','Jammu & Kashmir','Ladakh','Puducherry'];
@@ -230,7 +230,7 @@ export default function Checkout() {
             <div className="space-y-3 mb-4 max-h-48 overflow-y-auto">
               {cart.map((item, i) => (
                 <div key={i} className="flex gap-3 items-start">
-                  <img src={item.images?.[0]?.url || PLACEHOLDER} alt={item.name}
+                  <img src={getImageUrl(item.images?.[0]?.url) || PLACEHOLDER} alt={item.name}
                     className="w-12 h-12 object-cover rounded-lg flex-shrink-0 bg-blush-50"
                     onError={e => { e.target.src = PLACEHOLDER; }}
                   />
