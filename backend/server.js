@@ -69,6 +69,17 @@ app.use('/api/returns', require('./routes/returns'));
 app.use('/api/coupons', require('./routes/coupons'));
 app.use('/api/upload', require('./routes/upload'));
 
+// ─── Root Route ─────────────────────────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.json({
+    name: "Vino'z Fashion API",
+    status: 'running',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    endpoints: ['/api/products', '/api/orders', '/api/payments', '/api/admin', '/api/returns', '/api/coupons', '/health']
+  });
+});
+
 // ─── Health Check ────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
