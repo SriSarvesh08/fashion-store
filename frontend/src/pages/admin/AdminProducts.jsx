@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, Search, Upload, X } from 'lucide-react';
 import AdminSidebar from '../../components/admin/AdminSidebar';
-import { productsApi, uploadApi } from '../../utils/api';
+import { productsApi, uploadApi, getImageUrl } from '../../utils/api';
 import toast from 'react-hot-toast';
 import Spinner from '../../components/common/Spinner';
 
@@ -157,7 +157,7 @@ export default function AdminProducts() {
                     <tr key={p._id} className="hover:bg-blush-50/20">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <img src={p.images?.[0]?.url || PLACEHOLDER} alt={p.name}
+                          <img src={getImageUrl(p.images?.[0]?.url) || PLACEHOLDER} alt={p.name}
                             className="w-10 h-10 object-cover rounded-lg bg-blush-50 flex-shrink-0"
                             onError={e => { e.target.src = PLACEHOLDER; }} />
                           <div>
@@ -259,7 +259,7 @@ export default function AdminProducts() {
                         {form.images.filter(img => img.url).map((img, i) => (
                           <div key={i} className="relative group">
                             <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-blush-200">
-                              <img src={img.url} alt={img.alt || ''} className="w-full h-full object-cover" />
+                              <img src={getImageUrl(img.url)} alt={img.alt || ''} className="w-full h-full object-cover" />
                               <button type="button" onClick={() => removeImage(i)}
                                 className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <X size={12} />

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, ShoppingBag, Star } from 'lucide-react';
 import { useCart, useWishlist } from '../../context/AppContext';
+import { getImageUrl } from '../../utils/api';
 import toast from 'react-hot-toast';
 
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=400&h=400&fit=crop';
@@ -40,7 +41,7 @@ export default function ProductCard({ product }) {
     });
   };
 
-  const imageUrl = product.images?.[0]?.url || PLACEHOLDER;
+  const imageUrl = getImageUrl(product.images?.[0]?.url) || PLACEHOLDER;
 
   return (
     <Link to={`/product/${product.slug}`} className="group block">

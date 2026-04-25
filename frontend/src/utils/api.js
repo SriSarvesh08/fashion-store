@@ -2,6 +2,22 @@ import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
+// Backend base URL (without /api suffix)
+const BACKEND_BASE = API_BASE.replace(/\/api$/, '');
+
+/**
+ * Resolves a product image URL:
+ * - Full https:// URLs (Cloudinary) → returned as-is
+ * - Relative /uploads/... paths → prefixed with backend base URL
+ * - Empty/null → returns empty string (caller should use placeholder)
+ */
+export const getImageUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('/uploads/')) return `${BACKEND_BASE}${url}`;
+  return url;
+};
+
 const api = axios.create({
   baseURL: API_BASE,
   timeout: 15000,
