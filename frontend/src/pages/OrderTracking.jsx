@@ -3,10 +3,10 @@ import { Package, Search, Truck, CheckCircle, Circle, Clock } from 'lucide-react
 import { ordersApi } from '../utils/api';
 import toast from 'react-hot-toast';
 
-const STATUS_STEPS = ['placed', 'confirmed', 'processing', 'shipped', 'out-for-delivery', 'delivered'];
+const STATUS_STEPS = ['confirmed', 'packed', 'dispatched', 'delivered'];
 const STATUS_LABELS = {
-  placed: 'Order Placed', confirmed: 'Confirmed', processing: 'Processing',
-  shipped: 'Shipped', 'out-for-delivery': 'Out for Delivery', delivered: 'Delivered'
+  confirmed: 'Order Confirmed', packed: 'Packed',
+  dispatched: 'Dispatched', delivered: 'Delivered'
 };
 
 export default function OrderTracking() {

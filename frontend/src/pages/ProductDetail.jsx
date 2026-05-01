@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Heart, ShoppingBag, ZoomIn, Truck, RotateCcw, Star, ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { Heart, ShoppingBag, ZoomIn, Truck, Star, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { useCart, useWishlist } from '../context/AppContext';
 import { productsApi, getImageUrl } from '../utils/api';
 import toast from 'react-hot-toast';
@@ -235,13 +235,7 @@ export default function ProductDetail() {
                 <p className="text-xs text-gray-500 font-body">{product.deliveryTime || '3-5 business days'} • Free above ₹500</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <RotateCcw size={16} className="text-blush-500 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-body font-medium text-gray-700">Returns & Exchange</p>
-                <p className="text-xs text-gray-500 font-body">{product.returnPolicy || '7-day easy return & exchange'}</p>
-              </div>
-            </div>
+
           </div>
         </div>
       </div>

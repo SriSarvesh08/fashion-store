@@ -9,7 +9,6 @@ const nav = [
   { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/admin/orders', label: 'Orders', icon: ShoppingBag },
   { path: '/admin/products', label: 'Products', icon: Package },
-  { path: '/admin/returns', label: 'Returns', icon: RotateCcw },
   { path: '/admin/coupons', label: 'Coupons', icon: Tag },
 ];
 

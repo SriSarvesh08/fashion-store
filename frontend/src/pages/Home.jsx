@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Star, Truck, RotateCcw, Shield, Sparkles } from 'lucide-react';
+import { ArrowRight, Star, Truck, Shield, Sparkles, Heart } from 'lucide-react';
 import ProductCard from '../components/product/ProductCard';
 import { productsApi } from '../utils/api';
 import Spinner from '../components/common/Spinner';
@@ -15,14 +15,14 @@ const categories = [
 ];
 
 const testimonials = [
-  { name: 'Priya S.', text: 'Absolutely love the earrings! Quality is amazing and delivery was super fast.', rating: 5 },
-  { name: 'Meera R.', text: 'The bangles look exactly like the photos. Great packaging too!', rating: 5 },
-  { name: 'Ananya K.', text: 'My go-to place for accessories. The hair clips are adorable!', rating: 5 },
+  { name: 'Priya S.', text: 'Absolutely love the earrings! The quality exceeded my expectations and delivery was super fast. Will definitely order again!', rating: 5 },
+  { name: 'Meera R.', text: 'The bangles look exactly like the photos. Beautiful packaging — felt like opening a gift! Perfect for daily wear.', rating: 5 },
+  { name: 'Ananya K.', text: 'My go-to store for accessories now. The hair clips are adorable and the prices are so reasonable!', rating: 5 },
 ];
 
 const features = [
   { icon: Truck, title: 'Free Shipping', desc: 'On orders above ₹500' },
-  { icon: RotateCcw, title: 'Easy Returns', desc: '7-day return policy' },
+  { icon: Heart, title: 'Made with Love', desc: 'Handcrafted with care' },
   { icon: Shield, title: 'Secure Payment', desc: 'Razorpay protected' },
   { icon: Sparkles, title: 'Quality Assured', desc: 'Handpicked products' },
 ];

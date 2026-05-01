@@ -20,7 +20,7 @@ const orderValidation = [
   body('customer.address.state').trim().notEmpty().withMessage('State required'),
   body('customer.address.pincode').matches(/^\d{6}$/).withMessage('Valid 6-digit pincode required'),
   body('items').isArray({ min: 1 }).withMessage('At least one item required'),
-  body('payment.method').isIn(['razorpay', 'cod']).withMessage('Invalid payment method')
+  body('payment.method').isIn(['razorpay']).withMessage('Invalid payment method')
 ];
 
 // ─── Place Order ──────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ router.post('/', orderValidation, async (req, res) => {
       couponCode: couponCode?.toUpperCase(),
       payment: {
         method: payment.method,
-        status: payment.method === 'cod' ? 'pending' : 'pending'
+        status: 'pending'
       },
       notes,
       estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)
@@ -93,23 +93,7 @@ router.post('/', orderValidation, async (req, res) => {
 
     await order.save();
 
-    // For COD: deduct stock and send emails immediately
-    // For Razorpay: defer until payment is verified (see payments.js)
-    if (payment.method === 'cod') {
-      for (const item of validatedItems) {
-        await Product.findByIdAndUpdate(item.product, {
-          $inc: { stock: -item.quantity, soldCount: item.quantity }
-        });
-      }
-
-      // Send emails (non-blocking, update flags only on success)
-      emailService.sendCustomerOrderEmail(order)
-        .then(() => Order.findByIdAndUpdate(order._id, { 'emailSent.customer': true }))
-        .catch(err => console.error('Customer email failed:', err.message));
-      emailService.sendAdminOrderEmail(order)
-        .then(() => Order.findByIdAndUpdate(order._id, { 'emailSent.admin': true }))
-        .catch(err => console.error('Admin email failed:', err.message));
-    }
+    // Stock deduction happens after Razorpay payment verification (see payments.js)
 
     res.status(201).json({
       success: true,
@@ -203,7 +187,7 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
   try {
     const { status, note, tracking } = req.body;
 
-    const validStatuses = ['placed', 'confirmed', 'processing', 'shipped', 'out-for-delivery', 'delivered', 'cancelled'];
+    const validStatuses = ['confirmed', 'packed', 'dispatched', 'delivered'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }

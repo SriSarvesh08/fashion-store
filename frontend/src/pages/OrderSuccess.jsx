@@ -31,7 +31,7 @@ export function OrderSuccess() {
               <div className="flex justify-between text-sm font-body text-gray-500 mb-1">
                 <span>Payment</span>
                 <span className="capitalize font-medium text-gray-700">
-                  {order.payment?.method === 'cod' ? 'Cash on Delivery' : 'Online Payment'}
+                  Online Payment
                 </span>
               </div>
               <div className="flex justify-between text-sm font-body text-gray-500">

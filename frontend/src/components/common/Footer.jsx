@@ -41,7 +41,7 @@ export default function Footer() {
             <h4 className="font-body font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Help</h4>
             <ul className="space-y-2">
               <li><Link to="/track-order" className="text-sm text-gray-500 hover:text-blush-600 font-body transition-colors">Track Order</Link></li>
-              <li><Link to="/return-request" className="text-sm text-gray-500 hover:text-blush-600 font-body transition-colors">Returns & Exchange</Link></li>
+              <li><a href="mailto:vinozfasion@gmail.com" className="text-sm text-gray-500 hover:text-blush-600 font-body transition-colors">Contact Us</a></li>
               <li><a href="#faq" className="text-sm text-gray-500 hover:text-blush-600 font-body transition-colors">FAQ</a></li>
               <li><Link to="/admin/login" className="text-sm text-gray-500 hover:text-blush-600 font-body transition-colors">Admin</Link></li>
             </ul>

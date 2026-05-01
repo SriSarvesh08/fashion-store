@@ -12,7 +12,7 @@ const PLACEHOLDER = 'https://images.unsplash.com/photo-1535632066927-ab7c9ab6090
 export default function Checkout() {
   const navigate = useNavigate();
   const { cart, cartTotal, shipping, grandTotal, cartDispatch } = useCart();
-  const [paymentMethod, setPaymentMethod] = useState('razorpay');
+  const [paymentMethod] = useState('razorpay');
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(null);
   const [couponLoading, setCouponLoading] = useState(false);
@@ -79,19 +79,7 @@ export default function Checkout() {
     couponCode: couponApplied?.code
   });
 
-  const handleCOD = async () => {
-    if (!validate()) { toast.error('Please fill all required fields'); return; }
-    setPlacing(true);
-    try {
-      const res = await ordersApi.create(buildOrderPayload());
-      cartDispatch({ type: 'CLEAR' });
-      navigate(`/order-success/${res.data.orderId}`);
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to place order');
-    } finally {
-      setPlacing(false);
-    }
-  };
+
 
   const handleRazorpay = async () => {
     if (!validate()) { toast.error('Please fill all required fields'); return; }
@@ -199,24 +187,15 @@ export default function Checkout() {
           {/* Payment */}
           <div className="card p-6">
             <h2 className="font-body font-semibold text-gray-700 mb-4">Payment Method</h2>
-            <div className="space-y-3">
-              {[
-                { value: 'razorpay', label: 'Online Payment', desc: 'UPI, Card, Net Banking via Razorpay', badge: 'Recommended' },
-                { value: 'cod', label: 'Cash on Delivery', desc: 'Pay when your order arrives' }
-              ].map(opt => (
-                <label key={opt.value} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-colors
-                  ${paymentMethod === opt.value ? 'border-blush-500 bg-blush-50' : 'border-gray-200 hover:border-blush-200'}`}>
-                  <input type="radio" value={opt.value} checked={paymentMethod === opt.value}
-                    onChange={e => setPaymentMethod(e.target.value)} className="accent-blush-600" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-body font-medium text-gray-700 text-sm">{opt.label}</span>
-                      {opt.badge && <span className="badge bg-green-100 text-green-700">{opt.badge}</span>}
-                    </div>
-                    <p className="text-xs text-gray-400 font-body">{opt.desc}</p>
-                  </div>
-                </label>
-              ))}
+            <div className="flex items-center gap-4 p-4 rounded-xl border-2 border-blush-500 bg-blush-50">
+              <div className="w-3 h-3 rounded-full bg-blush-500" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-body font-medium text-gray-700 text-sm">Online Payment</span>
+                  <span className="badge bg-green-100 text-green-700">Secure</span>
+                </div>
+                <p className="text-xs text-gray-400 font-body">UPI, Card, Net Banking via Razorpay</p>
+              </div>
             </div>
           </div>
         </div>
@@ -302,7 +281,7 @@ export default function Checkout() {
 
             {/* Place Order Button */}
             <button
-              onClick={paymentMethod === 'cod' ? handleCOD : handleRazorpay}
+              onClick={handleRazorpay}
               disabled={placing}
               className="btn-primary w-full mt-5 py-4 flex items-center justify-center gap-2 text-base"
             >
@@ -311,7 +290,7 @@ export default function Checkout() {
               ) : (
                 <>
                   <Lock size={16} />
-                  {paymentMethod === 'cod' ? 'Place Order (COD)' : 'Pay ₹' + finalTotal.toLocaleString('en-IN')}
+                  Pay ₹{finalTotal.toLocaleString('en-IN')}
                 </>
               )}
             </button>

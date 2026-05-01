@@ -52,7 +52,7 @@ export default function Navbar() {
     <header className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white shadow-sm' : 'bg-white/95 backdrop-blur-sm'}`}>
       {/* Top bar */}
       <div className="bg-blush-600 text-white text-center py-1.5 text-xs font-body">
-        🚚 Free shipping on orders above ₹500 &nbsp;|&nbsp; 7-day easy returns
+        🚚 Free shipping on orders above ₹500 &nbsp;|&nbsp; 💎 Quality assured accessories
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6">

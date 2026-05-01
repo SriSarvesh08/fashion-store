@@ -56,7 +56,7 @@ const orderSchema = new mongoose.Schema({
   payment: {
     method: {
       type: String,
-      enum: ['razorpay', 'cod'],
+      enum: ['razorpay'],
       required: true
     },
     status: {
@@ -71,8 +71,8 @@ const orderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['placed', 'confirmed', 'processing', 'shipped', 'out-for-delivery', 'delivered', 'cancelled', 'return-requested', 'returned'],
-    default: 'placed'
+    enum: ['confirmed', 'packed', 'dispatched', 'delivered'],
+    default: 'confirmed'
   },
   statusHistory: [{
     status: String,
