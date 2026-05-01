@@ -20,7 +20,7 @@ export default function AdminSidebar({ children }) {
 
   const logout = () => {
     localStorage.removeItem('vnz_admin_token');
-    navigate('/admin/login');
+    navigate('/');
   };
 
   const Sidebar = () => (
