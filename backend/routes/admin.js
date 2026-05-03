@@ -257,4 +257,51 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
   }
 });
 
+// ─── TEMPORARY: Test Email (remove after debugging) ─────────────────────────
+router.get('/test-email', async (req, res) => {
+  try {
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_PORT === '465',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+
+    // Test connection first
+    await transporter.verify();
+
+    // Try sending
+    const info = await transporter.sendMail({
+      from: process.env.SMTP_USER,
+      to: process.env.ADMIN_EMAIL,
+      subject: 'Render SMTP Test',
+      text: 'If you see this, SMTP works from Render!'
+    });
+
+    res.json({
+      success: true,
+      messageId: info.messageId,
+      smtpHost: process.env.SMTP_HOST,
+      smtpPort: process.env.SMTP_PORT,
+      smtpUser: process.env.SMTP_USER,
+      adminEmail: process.env.ADMIN_EMAIL
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message,
+      code: error.code,
+      smtpHost: process.env.SMTP_HOST || 'NOT SET',
+      smtpPort: process.env.SMTP_PORT || 'NOT SET',
+      smtpUser: process.env.SMTP_USER || 'NOT SET',
+      smtpPass: process.env.SMTP_PASS ? 'SET (' + process.env.SMTP_PASS.length + ' chars)' : 'NOT SET',
+      adminEmail: process.env.ADMIN_EMAIL || 'NOT SET'
+    });
+  }
+});
+
 module.exports = router;
