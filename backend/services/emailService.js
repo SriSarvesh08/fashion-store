@@ -1,23 +1,8 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_PORT === '465',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  }
-});
-
-// Verify connection on startup
-transporter.verify((error) => {
-  if (error) {
-    console.error('❌ Email service error:', error.message);
-  } else {
-    console.log('✅ Email service ready');
-  }
-});
+// Use Resend HTTP API (works on Render free tier — no SMTP needed)
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = 'Vino\'z Fashion <onboarding@resend.dev>';
 
 const formatAddress = (address) =>
   `${address.street}, ${address.city}, ${address.state} - ${address.pincode}`;
@@ -63,7 +48,7 @@ const baseEmailTemplate = (content) => `
         <tr>
           <td style="background:#fdf6f6;padding:20px;text-align:center;border-top:1px solid #f0e6e6;">
             <p style="margin:0;color:#999;font-size:12px;">© 2026 Vino'z Fashion. All rights reserved.</p>
-            <p style="margin:5px 0 0;color:#999;font-size:12px;">For support: ${process.env.SMTP_USER}</p>
+            <p style="margin:5px 0 0;color:#999;font-size:12px;">For support: ${process.env.ADMIN_EMAIL || 'vinozfasion@gmail.com'}</p>
           </td>
         </tr>
         
@@ -123,12 +108,16 @@ const sendCustomerOrderEmail = async (order) => {
     <p style="color:#888;font-size:13px;">Have questions? Reply to this email or WhatsApp us. We're here to help! 💕</p>
   `;
 
-  await transporter.sendMail({
-    from: `"Vino'z Fashion" <${process.env.SMTP_USER}>`,
-    to: order.customer.email,
-    subject: `✅ Order Confirmed #${order.orderId} - Vino'z Fashion`,
-    html: baseEmailTemplate(content)
-  });
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: order.customer.email,
+      subject: `✅ Order Confirmed #${order.orderId} - Vino'z Fashion`,
+      html: baseEmailTemplate(content)
+    });
+  } catch (err) {
+    console.error('Customer email failed:', err.message);
+  }
 };
 
 // ─── Send Admin Notification Email ────────────────────────────────────────
@@ -175,12 +164,16 @@ const sendAdminOrderEmail = async (order) => {
     </div>
   `;
 
-  await transporter.sendMail({
-    from: `"Vino'z Fashion Orders" <${process.env.SMTP_USER}>`,
-    to: process.env.ADMIN_EMAIL,
-    subject: `🛍️ New Order #${order.orderId} - ₹${order.pricing.total} (${order.payment.method.toUpperCase()})`,
-    html: baseEmailTemplate(content)
-  });
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: process.env.ADMIN_EMAIL,
+      subject: `🛍️ New Order #${order.orderId} - ₹${order.pricing.total} (${order.payment.method.toUpperCase()})`,
+      html: baseEmailTemplate(content)
+    });
+  } catch (err) {
+    console.error('Admin email failed:', err.message);
+  }
 };
 
 // ─── Order Status Update Email ────────────────────────────────────────────
@@ -209,15 +202,19 @@ const sendStatusUpdateEmail = async (order) => {
     </div>
   `;
 
-  await transporter.sendMail({
-    from: `"Vino'z Fashion" <${process.env.SMTP_USER}>`,
-    to: order.customer.email,
-    subject: `${msg.emoji} Order #${order.orderId} - ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}`,
-    html: baseEmailTemplate(content)
-  });
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: order.customer.email,
+      subject: `${msg.emoji} Order #${order.orderId} - ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}`,
+      html: baseEmailTemplate(content)
+    });
+  } catch (err) {
+    console.error('Status update email failed:', err.message);
+  }
 };
 
-// ─── Admin OTP Email ──────────────────────────────────────────────────────
+// ─── Admin OTP Email (also via Resend) ────────────────────────────────────
 const sendAdminOtpEmail = async (email, otpCode) => {
   const content = `
     <h2 style="color:#c9748f;margin:0 0 5px;">🔐 Admin Login Verification</h2>
@@ -236,8 +233,8 @@ const sendAdminOtpEmail = async (email, otpCode) => {
     <p style="color:#888;font-size:13px;">This is an automated security email. Do not share this OTP with anyone.</p>
   `;
 
-  await transporter.sendMail({
-    from: `"Vino'z Fashion Security" <${process.env.SMTP_USER}>`,
+  await resend.emails.send({
+    from: FROM_EMAIL,
     to: email,
     subject: `🔐 Your Admin Login OTP - Vino'z Fashion`,
     html: baseEmailTemplate(content)
