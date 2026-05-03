@@ -46,7 +46,7 @@ export default function AdminLogin() {
         toast.success('OTP sent to your email!');
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Invalid credentials');
+      toast.error(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }

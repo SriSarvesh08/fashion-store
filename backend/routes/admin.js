@@ -55,24 +55,28 @@ router.post('/login', async (req, res) => {
     };
     await admin.save();
 
-    // Send OTP email to admin
+    // Send OTP email to admin (non-blocking — respond first, email in background)
     const adminEmail = admin.email || process.env.ADMIN_EMAIL;
     if (!adminEmail) {
       return res.status(500).json({ error: 'Admin email not configured. Cannot send OTP.' });
     }
-
-    await sendAdminOtpEmail(adminEmail, otpCode);
 
     // Mask the email for display
     const parts = adminEmail.split('@');
     const maskedLocal = parts[0].slice(0, 3) + '***';
     const maskedEmail = `${maskedLocal}@${parts[1]}`;
 
+    // Send response immediately so frontend doesn't timeout
     res.json({
       requiresOtp: true,
       message: 'OTP sent to your registered email',
       maskedEmail,
       adminId: admin._id
+    });
+
+    // Send email in background (don't await — prevents timeout)
+    sendAdminOtpEmail(adminEmail, otpCode).catch(emailErr => {
+      console.error('Failed to send OTP email:', emailErr.message);
     });
   } catch (error) {
     console.error('Admin login error:', error);
