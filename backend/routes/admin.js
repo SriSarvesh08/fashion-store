@@ -292,19 +292,5 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
   }
 });
 
-// TEMPORARY: Test Resend API
-router.get('/test-resend', async (req, res) => {
-  try {
-    const result = await resend.emails.send({
-      from: 'Vinoz Fashion <onboarding@resend.dev>',
-      to: process.env.ADMIN_EMAIL,
-      subject: 'Resend Test from Render',
-      text: 'If you see this, Resend works!'
-    });
-    res.json({ success: true, result });
-  } catch (error) {
-    res.json({ success: false, error: error.message, details: error });
-  }
-});
-
 module.exports = router;
+
