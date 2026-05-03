@@ -1,8 +1,37 @@
-const { Resend } = require('resend');
+// Email service using Brevo HTTP API for ORDER emails
+// OTP emails are handled separately via Resend in admin.js
+// Free: 300 emails/day, no domain verification, sends to any address
 
-// Use Resend HTTP API (works on Render free tier — no SMTP needed)
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = 'Vino\'z Fashion <onboarding@resend.dev>';
+const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
+
+async function sendEmail({ to, subject, html }) {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) {
+    console.error('❌ BREVO_API_KEY not set — email not sent');
+    return;
+  }
+
+  const response = await fetch(BREVO_API_URL, {
+    method: 'POST',
+    headers: {
+      'api-key': apiKey,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: "Vino'z Fashion", email: process.env.ADMIN_EMAIL || 'vinozfasion@gmail.com' },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Brevo API error (${response.status}): ${err}`);
+  }
+
+  return response.json();
+}
 
 const formatAddress = (address) =>
   `${address.street}, ${address.city}, ${address.state} - ${address.pincode}`;
@@ -109,8 +138,7 @@ const sendCustomerOrderEmail = async (order) => {
   `;
 
   try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
+    await sendEmail({
       to: order.customer.email,
       subject: `✅ Order Confirmed #${order.orderId} - Vino'z Fashion`,
       html: baseEmailTemplate(content)
@@ -165,8 +193,7 @@ const sendAdminOrderEmail = async (order) => {
   `;
 
   try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
+    await sendEmail({
       to: process.env.ADMIN_EMAIL,
       subject: `🛍️ New Order #${order.orderId} - ₹${order.pricing.total} (${order.payment.method.toUpperCase()})`,
       html: baseEmailTemplate(content)
@@ -203,8 +230,7 @@ const sendStatusUpdateEmail = async (order) => {
   `;
 
   try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
+    await sendEmail({
       to: order.customer.email,
       subject: `${msg.emoji} Order #${order.orderId} - ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}`,
       html: baseEmailTemplate(content)
@@ -214,36 +240,8 @@ const sendStatusUpdateEmail = async (order) => {
   }
 };
 
-// ─── Admin OTP Email (also via Resend) ────────────────────────────────────
-const sendAdminOtpEmail = async (email, otpCode) => {
-  const content = `
-    <h2 style="color:#c9748f;margin:0 0 5px;">🔐 Admin Login Verification</h2>
-    <p style="color:#666;margin:0 0 25px;">Use the following One-Time Password to complete your login:</p>
-    
-    <div style="background:linear-gradient(135deg,#fdf6f6,#fff0f5);border-radius:16px;padding:30px;margin-bottom:25px;text-align:center;border:2px solid #f0e6e6;">
-      <p style="margin:0 0 8px;font-size:13px;color:#888;text-transform:uppercase;letter-spacing:2px;">Your OTP Code</p>
-      <p style="margin:0;font-size:42px;font-weight:bold;color:#c9748f;letter-spacing:12px;font-family:monospace;">${otpCode}</p>
-    </div>
-    
-    <div style="background:#fff8e1;border-left:4px solid #ffc107;border-radius:4px;padding:12px;margin-bottom:20px;">
-      <p style="margin:0;color:#e65100;font-size:14px;">⏱️ <strong>This OTP expires in 30 seconds.</strong></p>
-      <p style="margin:5px 0 0;color:#666;font-size:13px;">If you did not attempt to log in, please secure your account immediately.</p>
-    </div>
-    
-    <p style="color:#888;font-size:13px;">This is an automated security email. Do not share this OTP with anyone.</p>
-  `;
-
-  await resend.emails.send({
-    from: FROM_EMAIL,
-    to: email,
-    subject: `🔐 Your Admin Login OTP - Vino'z Fashion`,
-    html: baseEmailTemplate(content)
-  });
-};
-
 module.exports = {
   sendCustomerOrderEmail,
   sendAdminOrderEmail,
-  sendStatusUpdateEmail,
-  sendAdminOtpEmail
+  sendStatusUpdateEmail
 };
