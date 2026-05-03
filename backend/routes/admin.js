@@ -180,9 +180,14 @@ router.post('/resend-otp', async (req, res) => {
     await admin.save();
 
     const adminEmail = admin.email || process.env.ADMIN_EMAIL;
-    await sendAdminOtpEmail(adminEmail, otpCode);
 
+    // Send response immediately
     res.json({ message: 'New OTP sent successfully' });
+
+    // Send email in background
+    sendAdminOtpEmail(adminEmail, otpCode).catch(emailErr => {
+      console.error('Failed to resend OTP email:', emailErr.message);
+    });
   } catch (error) {
     console.error('Resend OTP error:', error);
     res.status(500).json({ error: 'Failed to resend OTP' });
