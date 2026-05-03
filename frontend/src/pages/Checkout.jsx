@@ -12,7 +12,7 @@ const PLACEHOLDER = 'https://images.unsplash.com/photo-1535632066927-ab7c9ab6090
 export default function Checkout() {
   const navigate = useNavigate();
   const { cart, cartTotal, shipping, grandTotal, cartDispatch } = useCart();
-  const [paymentMethod] = useState('razorpay');
+  const [paymentMethod, setPaymentMethod] = useState('razorpay');
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(null);
   const [couponLoading, setCouponLoading] = useState(false);
@@ -78,6 +78,20 @@ export default function Checkout() {
     payment: { method: paymentMethod },
     couponCode: couponApplied?.code
   });
+
+  const handleCOD = async () => {
+    if (!validate()) { toast.error('Please fill all required fields'); return; }
+    setPlacing(true);
+    try {
+      const orderRes = await ordersApi.create(buildOrderPayload());
+      cartDispatch({ type: 'CLEAR' });
+      navigate(`/order-success/${orderRes.data.orderId}`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to place order');
+    } finally {
+      setPlacing(false);
+    }
+  };
 
 
 
@@ -187,15 +201,47 @@ export default function Checkout() {
           {/* Payment */}
           <div className="card p-6">
             <h2 className="font-body font-semibold text-gray-700 mb-4">Payment Method</h2>
-            <div className="flex items-center gap-4 p-4 rounded-xl border-2 border-blush-500 bg-blush-50">
-              <div className="w-3 h-3 rounded-full bg-blush-500" />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-body font-medium text-gray-700 text-sm">Online Payment</span>
-                  <span className="badge bg-green-100 text-green-700">Secure</span>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('razorpay')}
+                className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
+                  paymentMethod === 'razorpay' ? 'border-blush-500 bg-blush-50' : 'border-gray-200 hover:border-blush-300'
+                }`}
+              >
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                  paymentMethod === 'razorpay' ? 'border-blush-500' : 'border-gray-300'
+                }`}>
+                  {paymentMethod === 'razorpay' && <div className="w-2 h-2 rounded-full bg-blush-500" />}
                 </div>
-                <p className="text-xs text-gray-400 font-body">UPI, Card, Net Banking via Razorpay</p>
-              </div>
+                <div className="flex-1 text-left">
+                  <div className="flex items-center gap-2">
+                    <span className="font-body font-medium text-gray-700 text-sm">Online Payment</span>
+                    <span className="badge bg-green-100 text-green-700">Secure</span>
+                  </div>
+                  <p className="text-xs text-gray-400 font-body">UPI, Card, Net Banking via Razorpay</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('cod')}
+                className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
+                  paymentMethod === 'cod' ? 'border-blush-500 bg-blush-50' : 'border-gray-200 hover:border-blush-300'
+                }`}
+              >
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                  paymentMethod === 'cod' ? 'border-blush-500' : 'border-gray-300'
+                }`}>
+                  {paymentMethod === 'cod' && <div className="w-2 h-2 rounded-full bg-blush-500" />}
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="flex items-center gap-2">
+                    <span className="font-body font-medium text-gray-700 text-sm">Cash on Delivery</span>
+                  </div>
+                  <p className="text-xs text-gray-400 font-body">Pay when you receive your order</p>
+                </div>
+              </button>
             </div>
           </div>
         </div>
@@ -281,12 +327,14 @@ export default function Checkout() {
 
             {/* Place Order Button */}
             <button
-              onClick={handleRazorpay}
+              onClick={paymentMethod === 'cod' ? handleCOD : handleRazorpay}
               disabled={placing}
               className="btn-primary w-full mt-5 py-4 flex items-center justify-center gap-2 text-base"
             >
               {placing ? (
                 <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Processing...</span>
+              ) : paymentMethod === 'cod' ? (
+                <>Place Order • ₹{finalTotal.toLocaleString('en-IN')}</>
               ) : (
                 <>
                   <Lock size={16} />
@@ -296,7 +344,7 @@ export default function Checkout() {
             </button>
 
             <p className="text-center text-xs text-gray-400 font-body mt-3 flex items-center justify-center gap-1">
-              <Lock size={11} /> Secured by Razorpay
+              {paymentMethod === 'cod' ? '🏠 Pay cash when delivered' : <><Lock size={11} /> Secured by Razorpay</>}
             </p>
           </div>
         </div>

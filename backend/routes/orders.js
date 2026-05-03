@@ -20,7 +20,7 @@ const orderValidation = [
   body('customer.address.state').trim().notEmpty().withMessage('State required'),
   body('customer.address.pincode').matches(/^\d{6}$/).withMessage('Valid 6-digit pincode required'),
   body('items').isArray({ min: 1 }).withMessage('At least one item required'),
-  body('payment.method').isIn(['razorpay']).withMessage('Invalid payment method')
+  body('payment.method').isIn(['razorpay', 'cod']).withMessage('Invalid payment method')
 ];
 
 // ─── Place Order ──────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ router.post('/', orderValidation, async (req, res) => {
       couponCode: couponCode?.toUpperCase(),
       payment: {
         method: payment.method,
-        status: 'pending'
+        status: payment.method === 'cod' ? 'pending' : 'pending'
       },
       notes,
       estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)
@@ -93,7 +93,16 @@ router.post('/', orderValidation, async (req, res) => {
 
     await order.save();
 
-    // Stock deduction happens after Razorpay payment verification (see payments.js)
+    // For COD: deduct stock and send emails immediately
+    if (payment.method === 'cod') {
+      for (const item of validatedItems) {
+        await Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } });
+      }
+      // Send emails (non-blocking)
+      emailService.sendCustomerOrderEmail(order).catch(() => {});
+      emailService.sendAdminOrderEmail(order).catch(() => {});
+    }
+    // For Razorpay: stock deduction happens after payment verification (see payments.js)
 
     res.status(201).json({
       success: true,
