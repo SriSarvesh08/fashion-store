@@ -14,7 +14,13 @@ const adminSchema = new mongoose.Schema({
     minlength: 8
   },
   email: String,
-  lastLogin: Date
+  lastLogin: Date,
+  // OTP fields for 2FA
+  otp: {
+    code: String,
+    expiresAt: Date,
+    attempts: { type: Number, default: 0 }
+  }
 }, {
   timestamps: true
 });

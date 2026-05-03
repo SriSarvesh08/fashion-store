@@ -85,6 +85,8 @@ export const returnsApi = {
 // ─── Admin ────────────────────────────────────────────────────────────────
 export const adminApi = {
   login: (data) => api.post('/admin/login', data),
+  verifyOtp: (data) => api.post('/admin/verify-otp', data),
+  resendOtp: (data) => api.post('/admin/resend-otp', data),
   dashboard: () => api.get('/admin/dashboard'),
 };
 

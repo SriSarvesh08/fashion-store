@@ -217,8 +217,36 @@ const sendStatusUpdateEmail = async (order) => {
   });
 };
 
+// ─── Admin OTP Email ──────────────────────────────────────────────────────
+const sendAdminOtpEmail = async (email, otpCode) => {
+  const content = `
+    <h2 style="color:#c9748f;margin:0 0 5px;">🔐 Admin Login Verification</h2>
+    <p style="color:#666;margin:0 0 25px;">Use the following One-Time Password to complete your login:</p>
+    
+    <div style="background:linear-gradient(135deg,#fdf6f6,#fff0f5);border-radius:16px;padding:30px;margin-bottom:25px;text-align:center;border:2px solid #f0e6e6;">
+      <p style="margin:0 0 8px;font-size:13px;color:#888;text-transform:uppercase;letter-spacing:2px;">Your OTP Code</p>
+      <p style="margin:0;font-size:42px;font-weight:bold;color:#c9748f;letter-spacing:12px;font-family:monospace;">${otpCode}</p>
+    </div>
+    
+    <div style="background:#fff8e1;border-left:4px solid #ffc107;border-radius:4px;padding:12px;margin-bottom:20px;">
+      <p style="margin:0;color:#e65100;font-size:14px;">⏱️ <strong>This OTP expires in 30 seconds.</strong></p>
+      <p style="margin:5px 0 0;color:#666;font-size:13px;">If you did not attempt to log in, please secure your account immediately.</p>
+    </div>
+    
+    <p style="color:#888;font-size:13px;">This is an automated security email. Do not share this OTP with anyone.</p>
+  `;
+
+  await transporter.sendMail({
+    from: `"Vino'z Fashion Security" <${process.env.SMTP_USER}>`,
+    to: email,
+    subject: `🔐 Your Admin Login OTP - Vino'z Fashion`,
+    html: baseEmailTemplate(content)
+  });
+};
+
 module.exports = {
   sendCustomerOrderEmail,
   sendAdminOrderEmail,
-  sendStatusUpdateEmail
+  sendStatusUpdateEmail,
+  sendAdminOtpEmail
 };
