@@ -2,16 +2,51 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { Resend } = require('resend');
 const Admin = require('../models/Admin');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Return = require('../models/Return');
 const authMiddleware = require('../middleware/auth');
-const { sendAdminOtpEmail } = require('../services/emailService');
+
+// Initialize Resend (HTTP-based email — works on Render free tier)
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Generate a 6-digit OTP
 function generateOtp() {
   return crypto.randomInt(100000, 999999).toString();
+}
+
+// Send OTP email via Resend HTTP API
+async function sendOtpViaResend(toEmail, otpCode) {
+  await resend.emails.send({
+    from: 'Vinoz Fashion Security <onboarding@resend.dev>',
+    to: toEmail,
+    subject: `🔐 Your Admin Login OTP - Vino'z Fashion`,
+    html: `
+      <div style="font-family:Georgia,serif;max-width:500px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,0.08);">
+        <div style="background:linear-gradient(135deg,#c9748f,#e8a4b8);padding:25px;text-align:center;">
+          <h1 style="margin:0;color:#fff;font-size:22px;letter-spacing:2px;">Vino'z Fashion</h1>
+        </div>
+        <div style="padding:30px;">
+          <h2 style="color:#c9748f;margin:0 0 5px;">🔐 Admin Login Verification</h2>
+          <p style="color:#666;margin:0 0 25px;">Use the following One-Time Password to complete your login:</p>
+          <div style="background:linear-gradient(135deg,#fdf6f6,#fff0f5);border-radius:16px;padding:30px;margin-bottom:25px;text-align:center;border:2px solid #f0e6e6;">
+            <p style="margin:0 0 8px;font-size:13px;color:#888;text-transform:uppercase;letter-spacing:2px;">Your OTP Code</p>
+            <p style="margin:0;font-size:42px;font-weight:bold;color:#c9748f;letter-spacing:12px;font-family:monospace;">${otpCode}</p>
+          </div>
+          <div style="background:#fff8e1;border-left:4px solid #ffc107;border-radius:4px;padding:12px;margin-bottom:20px;">
+            <p style="margin:0;color:#e65100;font-size:14px;">⏱️ <strong>This OTP expires in 30 seconds.</strong></p>
+            <p style="margin:5px 0 0;color:#666;font-size:13px;">If you did not attempt to log in, please ignore this email.</p>
+          </div>
+          <p style="color:#888;font-size:13px;">This is an automated security email. Do not share this OTP with anyone.</p>
+        </div>
+        <div style="background:#fdf6f6;padding:15px;text-align:center;border-top:1px solid #f0e6e6;">
+          <p style="margin:0;color:#999;font-size:12px;">© 2026 Vino'z Fashion. All rights reserved.</p>
+        </div>
+      </div>
+    `
+  });
 }
 
 // ─── Admin Login Step 1: Verify credentials & send OTP ──────────────────────
@@ -55,7 +90,7 @@ router.post('/login', async (req, res) => {
     };
     await admin.save();
 
-    // Send OTP email to admin (non-blocking — respond first, email in background)
+    // Send OTP email via Resend HTTP API
     const adminEmail = admin.email || process.env.ADMIN_EMAIL;
     if (!adminEmail) {
       return res.status(500).json({ error: 'Admin email not configured. Cannot send OTP.' });
@@ -74,9 +109,9 @@ router.post('/login', async (req, res) => {
       adminId: admin._id
     });
 
-    // Send email in background (don't await — prevents timeout)
-    sendAdminOtpEmail(adminEmail, otpCode).catch(emailErr => {
-      console.error('Failed to send OTP email:', emailErr.message);
+    // Send email in background via Resend HTTP API
+    sendOtpViaResend(adminEmail, otpCode).catch(emailErr => {
+      console.error('Failed to send OTP email via Resend:', emailErr.message);
     });
   } catch (error) {
     console.error('Admin login error:', error);
@@ -184,9 +219,9 @@ router.post('/resend-otp', async (req, res) => {
     // Send response immediately
     res.json({ message: 'New OTP sent successfully' });
 
-    // Send email in background
-    sendAdminOtpEmail(adminEmail, otpCode).catch(emailErr => {
-      console.error('Failed to resend OTP email:', emailErr.message);
+    // Send email in background via Resend
+    sendOtpViaResend(adminEmail, otpCode).catch(emailErr => {
+      console.error('Failed to resend OTP email via Resend:', emailErr.message);
     });
   } catch (error) {
     console.error('Resend OTP error:', error);
@@ -255,54 +290,6 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch dashboard data' });
   }
-});
-
-// ─── TEMPORARY: Test Email (remove after debugging) ─────────────────────────
-router.get('/test-email', async (req, res) => {
-  const nodemailer = require('nodemailer');
-  const results = {};
-
-  // Try port 465 (SSL)
-  try {
-    const t465 = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      connectionTimeout: 10000
-    });
-    await t465.verify();
-    const info = await t465.sendMail({
-      from: process.env.SMTP_USER,
-      to: process.env.ADMIN_EMAIL,
-      subject: 'Render SMTP Test (Port 465)',
-      text: 'Port 465 SSL works from Render!'
-    });
-    results.port465 = { success: true, messageId: info.messageId };
-  } catch (e) {
-    results.port465 = { success: false, error: e.message, code: e.code };
-  }
-
-  // Try port 587 (STARTTLS)
-  try {
-    const t587 = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      connectionTimeout: 10000
-    });
-    await t587.verify();
-    results.port587 = { success: true };
-  } catch (e) {
-    results.port587 = { success: false, error: e.message, code: e.code };
-  }
-
-  res.json({
-    smtpUser: process.env.SMTP_USER,
-    adminEmail: process.env.ADMIN_EMAIL,
-    ...results
-  });
 });
 
 module.exports = router;
