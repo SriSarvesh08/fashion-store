@@ -9,34 +9,18 @@ router.post('/', async (req, res) => {
   try {
     const { orderId, type, reason, description, items, exchangeFor, phone } = req.body;
 
-    const order = await Order.findOne({ orderId });
+    const order = await Order.findByOrderId(orderId);
     if (!order) return res.status(404).json({ error: 'Order not found' });
-    if (order.customer.phone !== phone) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-    if (!['delivered'].includes(order.status)) {
-      return res.status(400).json({ error: 'Returns only accepted for delivered orders' });
-    }
+    if (order.customer.phone !== phone) return res.status(403).json({ error: 'Unauthorized' });
+    if (order.status !== 'delivered') return res.status(400).json({ error: 'Returns only accepted for delivered orders' });
 
-    const returnRequest = new Return({
-      order: order._id,
-      orderId,
-      customer: {
-        name: order.customer.name,
-        phone: order.customer.phone,
-        email: order.customer.email
-      },
+    const returnRequest = await Return.create({
+      orderRef: order._id, orderId,
+      customer: { name: order.customer.name, phone: order.customer.phone, email: order.customer.email },
       type, reason, description, items, exchangeFor
     });
 
-    await returnRequest.save();
-    await Order.findByIdAndUpdate(order._id, { status: 'return-requested' });
-
-    res.status(201).json({
-      success: true,
-      returnId: returnRequest.returnId,
-      message: 'Return request submitted successfully'
-    });
+    res.status(201).json({ success: true, returnId: returnRequest.returnId, message: 'Return request submitted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to submit return request' });
   }
@@ -45,7 +29,7 @@ router.post('/', async (req, res) => {
 // ─── ADMIN: Get All Returns ────────────────────────────────────────────────
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const returns = await Return.find().sort({ createdAt: -1 }).populate('order');
+    const returns = await Return.findAll();
     res.json(returns);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch returns' });
@@ -56,11 +40,7 @@ router.get('/', authMiddleware, async (req, res) => {
 router.patch('/:id', authMiddleware, async (req, res) => {
   try {
     const { status, adminNote } = req.body;
-    const returnReq = await Return.findByIdAndUpdate(
-      req.params.id,
-      { status, adminNote },
-      { new: true }
-    );
+    const returnReq = await Return.updateStatus(req.params.id, { status, adminNote });
     if (!returnReq) return res.status(404).json({ error: 'Return request not found' });
     res.json(returnReq);
   } catch (error) {

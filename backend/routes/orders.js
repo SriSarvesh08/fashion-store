@@ -7,9 +7,6 @@ const Coupon = require('../models/Coupon');
 const emailService = require('../services/emailService');
 const authMiddleware = require('../middleware/auth');
 
-// Escape special RegExp characters to prevent ReDoS
-const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 // ─── Validation ───────────────────────────────────────────────────────────
 const orderValidation = [
   body('customer.name').trim().notEmpty().withMessage('Name is required').isLength({ max: 100 }),
@@ -26,14 +23,11 @@ const orderValidation = [
 // ─── Place Order ──────────────────────────────────────────────────────────
 router.post('/', orderValidation, async (req, res) => {
   const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
   try {
     const { customer, items, payment, couponCode, notes } = req.body;
 
-    // Validate items and calculate pricing
     let subtotal = 0;
     const validatedItems = [];
 
@@ -45,71 +39,50 @@ router.post('/', orderValidation, async (req, res) => {
       if (product.stock < item.quantity) {
         return res.status(400).json({ error: `Insufficient stock for: ${product.name}` });
       }
-
       const price = product.discountPrice || product.price;
       subtotal += price * item.quantity;
-
       validatedItems.push({
-        product: product._id,
-        name: product.name,
-        image: product.images[0]?.url,
-        price,
-        quantity: item.quantity,
-        size: item.size,
-        color: item.color
+        product: product._id, name: product.name,
+        image: product.images[0]?.url, price,
+        quantity: item.quantity, size: item.size, color: item.color
       });
     }
 
-    // Apply coupon
     let discount = 0;
     if (couponCode) {
-      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
+      const coupon = await Coupon.findByCode(couponCode);
       if (coupon) {
-        const validity = coupon.isValid(subtotal);
+        const validity = Coupon.isValid(coupon, subtotal);
         if (validity.valid) {
-          discount = coupon.calculateDiscount(subtotal);
-          await Coupon.findByIdAndUpdate(coupon._id, { $inc: { usedCount: 1 } });
+          discount = Coupon.calculateDiscount(coupon, subtotal);
+          await Coupon.incrementUsedCount(coupon._id);
         }
       }
     }
 
-    // Free shipping above ₹500
     const shipping = (subtotal - discount) >= 500 ? 0 : 50;
     const total = subtotal - discount + shipping;
 
-    // Create order
-    const order = new Order({
-      customer,
-      items: validatedItems,
+    const order = await Order.create({
+      customer, items: validatedItems,
       pricing: { subtotal, discount, shipping, total },
       couponCode: couponCode?.toUpperCase(),
-      payment: {
-        method: payment.method,
-        status: payment.method === 'cod' ? 'pending' : 'pending'
-      },
+      payment: { method: payment.method, status: 'pending' },
       notes,
-      estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)
+      estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
     });
 
-    await order.save();
-
-    // For COD: deduct stock and send emails immediately
     if (payment.method === 'cod') {
       for (const item of validatedItems) {
-        await Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } });
+        await Product.decrementStock(item.product, item.quantity);
       }
-      // Send emails (non-blocking)
       emailService.sendCustomerOrderEmail(order).catch(() => {});
       emailService.sendAdminOrderEmail(order).catch(() => {});
     }
-    // For Razorpay: stock deduction happens after payment verification (see payments.js)
 
     res.status(201).json({
-      success: true,
-      orderId: order.orderId,
-      _id: order._id,
-      total: order.pricing.total,
-      paymentMethod: order.payment.method
+      success: true, orderId: order.orderId, _id: order._id,
+      total: order.pricing.total, paymentMethod: order.payment.method
     });
   } catch (error) {
     console.error('Order creation error:', error);
@@ -121,16 +94,11 @@ router.post('/', orderValidation, async (req, res) => {
 router.get('/track/:orderId', async (req, res) => {
   try {
     const { phone } = req.query;
-    const order = await Order.findOne({ orderId: req.params.orderId })
-      .populate('items.product', 'name images slug');
-
+    const order = await Order.findByOrderId(req.params.orderId);
     if (!order) return res.status(404).json({ error: 'Order not found' });
-
-    // Basic security: verify phone
     if (phone && order.customer.phone !== phone) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
-
     res.json(order);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch order' });
@@ -140,52 +108,10 @@ router.get('/track/:orderId', async (req, res) => {
 // ─── ADMIN: Get All Orders ────────────────────────────────────────────────
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const {
-      status, paymentMethod, page = 1, limit = 20,
-      search, from, to
-    } = req.query;
-
-    const filter = {};
-    if (status) filter.status = status;
-    if (paymentMethod) filter['payment.method'] = paymentMethod;
-    if (from || to) {
-      filter.createdAt = {};
-      if (from) filter.createdAt.$gte = new Date(from);
-      if (to) filter.createdAt.$lte = new Date(to);
-    }
-    if (search) {
-      const safeSearch = escapeRegex(search);
-      filter.$or = [
-        { orderId: new RegExp(safeSearch, 'i') },
-        { 'customer.name': new RegExp(safeSearch, 'i') },
-        { 'customer.phone': new RegExp(safeSearch, 'i') }
-      ];
-    }
-
-    const skip = (Number(page) - 1) * Number(limit);
-    const total = await Order.countDocuments(filter);
-    const orders = await Order.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(Number(limit));
-
-    // Summary stats
-    const stats = await Order.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalRevenue: { $sum: '$pricing.total' },
-          totalOrders: { $sum: 1 },
-          pendingOrders: { $sum: { $cond: [{ $eq: ['$status', 'placed'] }, 1, 0] } }
-        }
-      }
-    ]);
-
-    res.json({
-      orders,
-      pagination: { total, page: Number(page), pages: Math.ceil(total / Number(limit)) },
-      stats: stats[0] || {}
-    });
+    const { status, paymentMethod, page = 1, limit = 20, search, from, to } = req.query;
+    const result = await Order.findWithFilters({ status, paymentMethod, search, from, to, page, limit });
+    const stats = await Order.getOrderStats();
+    res.json({ ...result, stats });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch orders' });
   }
@@ -195,22 +121,14 @@ router.get('/', authMiddleware, async (req, res) => {
 router.patch('/:id/status', authMiddleware, async (req, res) => {
   try {
     const { status, note, tracking } = req.body;
-
     const validStatuses = ['confirmed', 'packed', 'dispatched', 'delivered'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
-    }
+    if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' });
 
-    const update = { status, note };
-    if (tracking) update.tracking = tracking;
-    if (status === 'delivered') update.deliveredAt = new Date();
-
-    const order = await Order.findByIdAndUpdate(req.params.id, update, { new: true });
+    const deliveredAt = status === 'delivered' ? new Date().toISOString() : undefined;
+    const order = await Order.updateStatus(req.params.id, { status, note, tracking, deliveredAt });
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
-    // Send status update email
     emailService.sendStatusUpdateEmail(order).catch(() => {});
-
     res.json(order);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update order status' });

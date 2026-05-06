@@ -1,5 +1,4 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -23,8 +22,9 @@ app.use('/api/', limiter);
 // ─── CORS ───────────────────────────────────────────────────────────────────
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  process.env.ADMIN_FRONTEND_URL,
   'http://localhost:3000',
-  'http://localhost:5173'
+  'http://localhost:3001'
 ].filter(Boolean);
 
 app.use(cors({
@@ -49,12 +49,9 @@ app.use((req, res, next) => {
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ─── Database ───────────────────────────────────────────────────────────────
-mongoose.connect(process.env.MONGODB_URI)
-.then(() => console.log('✅ MongoDB connected'))
-.catch(err => {
-  console.error('❌ MongoDB connection error:', err);
-  process.exit(1);
-});
+// Supabase is HTTP-based — no persistent connection needed.
+// The client is initialized in config/supabase.js and used by models.
+console.log('✅ Supabase client ready (HTTP-based, no connection needed)');
 
 // ─── Static Files (uploaded images) ──────────────────────────────────────────
 const path = require('path');
@@ -74,7 +71,8 @@ app.get('/', (req, res) => {
   res.json({
     name: "Vino'z Fashion API",
     status: 'running',
-    version: '1.0.0',
+    version: '2.0.0',
+    database: 'Supabase (PostgreSQL)',
     timestamp: new Date().toISOString(),
     endpoints: ['/api/products', '/api/orders', '/api/payments', '/api/admin', '/api/returns', '/api/coupons', '/health']
   });

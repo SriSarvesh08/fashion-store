@@ -43,6 +43,7 @@ export default function Footer() {
               <li><Link to="/track-order" className="text-sm text-gray-500 hover:text-blush-600 font-body transition-colors">Track Order</Link></li>
               <li><a href="mailto:vinozfasion@gmail.com" className="text-sm text-gray-500 hover:text-blush-600 font-body transition-colors">Contact Us</a></li>
               <li><a href="#faq" className="text-sm text-gray-500 hover:text-blush-600 font-body transition-colors">FAQ</a></li>
+              <li><Link to="/admin/login" className="text-sm text-gray-500 hover:text-blush-600 font-body transition-colors">Admin</Link></li>
             </ul>
           </div>
 

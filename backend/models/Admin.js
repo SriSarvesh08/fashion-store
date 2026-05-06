@@ -1,38 +1,60 @@
-const mongoose = require('mongoose');
+const supabase = require('../config/supabase');
 const bcrypt = require('bcryptjs');
 
-const adminSchema = new mongoose.Schema({
-  username: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true
+const TABLE = 'admins';
+
+const Admin = {
+  // Find admin by username
+  async findByUsername(username) {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('*')
+      .eq('username', username)
+      .single();
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
+    return data;
   },
-  password: {
-    type: String,
-    required: true,
-    minlength: 8
+
+  // Find admin by ID
+  async findById(id) {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
   },
-  email: String,
-  lastLogin: Date,
-  // OTP fields for 2FA
-  otp: {
-    code: String,
-    expiresAt: Date,
-    attempts: { type: Number, default: 0 }
+
+  // Create admin (hashes password before saving)
+  async create({ username, password, email }) {
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const { data, error } = await supabase
+      .from(TABLE)
+      .insert({ username, password: hashedPassword, email })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  // Update admin fields
+  async update(id, fields) {
+    fields.updated_at = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLE)
+      .update(fields)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  // Compare password
+  async comparePassword(candidatePassword, hashedPassword) {
+    return bcrypt.compare(candidatePassword, hashedPassword);
   }
-}, {
-  timestamps: true
-});
-
-adminSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 12);
-  next();
-});
-
-adminSchema.methods.comparePassword = function(candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
 };
 
-module.exports = mongoose.model('Admin', adminSchema);
+module.exports = Admin;

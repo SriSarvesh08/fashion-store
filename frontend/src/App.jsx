@@ -18,22 +18,7 @@ const OrderTracking = lazy(() => import('./pages/OrderTracking'));
 const Wishlist = lazy(() => import('./pages/Wishlist'));
 const ReturnRequest = lazy(() => import('./pages/ReturnRequest'));
 
-// Admin pages
-const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
-const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
-const AdminProducts = lazy(() => import('./pages/admin/AdminProducts'));
-const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
-const AdminReturns = lazy(() => import('./pages/admin/AdminReturns'));
-const AdminCoupons = lazy(() => import('./pages/admin/AdminCoupons'));
 
-function AdminGuard({ children }) {
-  const token = localStorage.getItem('vnz_admin_token');
-  return token ? children : <Navigate to="/admin/login" replace />;
-}
-
-function AdminLayout({ children }) {
-  return <div className="min-h-screen bg-gray-50">{children}</div>;
-}
 
 function ShopLayout({ children }) {
   return (
@@ -71,13 +56,6 @@ export default function App() {
           <Route path="/wishlist" element={<ShopLayout><Wishlist /></ShopLayout>} />
           <Route path="/return-request" element={<ShopLayout><ReturnRequest /></ShopLayout>} />
 
-          {/* Admin Routes */}
-          <Route path="/admin/login" element={<AdminLayout><AdminLogin /></AdminLayout>} />
-          <Route path="/admin" element={<AdminGuard><AdminLayout><AdminDashboard /></AdminLayout></AdminGuard>} />
-          <Route path="/admin/products" element={<AdminGuard><AdminLayout><AdminProducts /></AdminLayout></AdminGuard>} />
-          <Route path="/admin/orders" element={<AdminGuard><AdminLayout><AdminOrders /></AdminLayout></AdminGuard>} />
-          <Route path="/admin/returns" element={<AdminGuard><AdminLayout><AdminReturns /></AdminLayout></AdminGuard>} />
-          <Route path="/admin/coupons" element={<AdminGuard><AdminLayout><AdminCoupons /></AdminLayout></AdminGuard>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
