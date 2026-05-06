@@ -11,10 +11,31 @@ function getResend() {
   }
   return resendClient;
 }
-
-// ─── Gmail SMTP (order emails — won't go to spam) ────────────────────────
+// ─── Order Emails (Brevo HTTP primary, Gmail SMTP fallback for local) ────
 const nodemailer = require('nodemailer');
 
+// Brevo HTTP API (works on Render — no SMTP port needed)
+async function sendViaBravo({ to, subject, html }) {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) return false; // signal fallback
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sender: { name: "Vino'z Fashion", email: process.env.ADMIN_EMAIL || 'vinozfasion@gmail.com' },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html
+    })
+  });
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Brevo error (${response.status}): ${err}`);
+  }
+  return true;
+}
+
+// Gmail SMTP fallback (works locally, blocked on Render free tier)
 let transporter = null;
 function getTransporter() {
   if (!transporter && process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -28,10 +49,18 @@ function getTransporter() {
   return transporter;
 }
 
-async function sendViaGmail({ to, subject, html }) {
+// Try Brevo first (production), fall back to Gmail SMTP (local dev)
+async function sendOrderEmail({ to, subject, html }) {
+  try {
+    const sent = await sendViaBravo({ to, subject, html });
+    if (sent) return;
+  } catch (err) {
+    console.error('Brevo failed, trying Gmail SMTP:', err.message);
+  }
+  // Fallback to Gmail SMTP
   const t = getTransporter();
   if (!t) {
-    console.error('❌ SMTP credentials not set — order email not sent');
+    console.error('❌ No email provider configured — email not sent');
     return;
   }
   await t.sendMail({
@@ -127,7 +156,7 @@ const sendCustomerOrderEmail = async (order) => {
     <div style="background:#fff8e1;border-left:4px solid #ffc107;border-radius:4px;padding:12px;">
       <p style="margin:0;color:#e65100;font-size:14px;">⏱️ <strong>Estimated Delivery:</strong> 3-5 business days</p>
       <p style="margin:5px 0 0;color:#666;font-size:13px;">Payment: ${order.payment.method === 'cod' ? 'Cash on Delivery' : 'Online Payment'} • ${order.payment.status === 'paid' ? '✅ Paid' : '⏳ Pending'}</p></div>`;
-  try { await sendViaGmail({ to: order.customer.email, subject: `Order Confirmed #${order.orderId} - Vino'z Fashion`, html: wrap(content) }); }
+  try { await sendOrderEmail({ to: order.customer.email, subject: `Order Confirmed #${order.orderId} - Vino'z Fashion`, html: wrap(content) }); }
   catch (err) { console.error('Customer email failed:', err.message); }
 };
 
@@ -142,7 +171,7 @@ const sendAdminOrderEmail = async (order) => {
     <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:15px;">
       <tbody>${formatItems(order.items)}</tbody></table>
     <p style="margin:0;font-weight:bold;color:#444;">💳 ${order.payment.method === 'cod' ? 'COD' : 'Online'} • ${order.payment.status === 'paid' ? '✅ Paid' : '⏳ Pending'}</p>`;
-  try { await sendViaGmail({ to: process.env.ADMIN_EMAIL, subject: `🛍️ New Order #${order.orderId} - ₹${order.pricing.total}`, html: wrap(content) }); }
+  try { await sendOrderEmail({ to: process.env.ADMIN_EMAIL, subject: `🛍️ New Order #${order.orderId} - ₹${order.pricing.total}`, html: wrap(content) }); }
   catch (err) { console.error('Admin email failed:', err.message); }
 };
 
@@ -158,7 +187,7 @@ const sendStatusUpdateEmail = async (order) => {
       <p style="margin:0;font-size:13px;color:#888;">Order ID</p>
       <p style="margin:5px 0 0;font-size:20px;font-weight:bold;color:#c9748f;">#${order.orderId}</p>
       <p style="margin:10px 0 0;font-size:15px;color:#444;">Status: <strong>${order.status.toUpperCase()}</strong></p></div>`;
-  try { await sendViaGmail({ to: order.customer.email, subject: `Order #${order.orderId} - ${order.status.charAt(0).toUpperCase() + order.status.slice(1)} | Vino'z Fashion`, html: wrap(content) }); }
+  try { await sendOrderEmail({ to: order.customer.email, subject: `Order #${order.orderId} - ${order.status.charAt(0).toUpperCase() + order.status.slice(1)} | Vino'z Fashion`, html: wrap(content) }); }
   catch (err) { console.error('Status email failed:', err.message); }
 };
 
