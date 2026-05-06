@@ -17,7 +17,7 @@ const orderValidation = [
   body('customer.address.state').trim().notEmpty().withMessage('State required'),
   body('customer.address.pincode').matches(/^\d{6}$/).withMessage('Valid 6-digit pincode required'),
   body('items').isArray({ min: 1 }).withMessage('At least one item required'),
-  body('payment.method').isIn(['razorpay', 'cod']).withMessage('Invalid payment method')
+  body('payment.method').isIn(['razorpay']).withMessage('Invalid payment method')
 ];
 
 // ─── Place Order ──────────────────────────────────────────────────────────
@@ -72,13 +72,7 @@ router.post('/', orderValidation, async (req, res) => {
       estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
     });
 
-    if (payment.method === 'cod') {
-      for (const item of validatedItems) {
-        await Product.decrementStock(item.product, item.quantity);
-      }
-      emailService.sendCustomerOrderEmail(order).catch(() => {});
-      emailService.sendAdminOrderEmail(order).catch(() => {});
-    }
+
 
     res.status(201).json({
       success: true, orderId: order.orderId, _id: order._id,
