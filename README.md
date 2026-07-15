@@ -1,6 +1,6 @@
 # Vino'z Fashion — Full-Stack eCommerce
 
-> Production-ready women's accessories store built with React + Node.js + MongoDB + Razorpay
+> Production-ready women's accessories store built with React + Node.js + PostgreSQL (Supabase) + Razorpay
 
 ---
 
@@ -44,7 +44,8 @@ npm run dev
 
 | Variable | Description |
 |---|---|
-| `MONGODB_URI` | MongoDB Atlas connection string |
+| `SUPABASE_URL` | Supabase Project URL |
+| `SUPABASE_SERVICE_KEY` | Supabase Service Role Key |
 | `JWT_SECRET` | Random strong secret (32+ chars) |
 | `RAZORPAY_KEY_ID` | Razorpay live/test key ID |
 | `RAZORPAY_KEY_SECRET` | Razorpay secret key |
@@ -75,11 +76,11 @@ npm run dev
 3. Set `VITE_API_URL` = your Railway backend URL
 4. Deploy
 
-### Database → MongoDB Atlas
+### Database → PostgreSQL (Supabase)
 
-1. Create free cluster at mongodb.com/atlas
-2. Whitelist IP `0.0.0.0/0` for Railway
-3. Copy connection string to `MONGODB_URI`
+1. Create free project at supabase.com
+2. Run the `backend/supabase-schema.sql` in the SQL Editor to set up tables
+3. Copy URL and Service Role Key to `.env`
 
 ---
 
@@ -131,7 +132,7 @@ Choose payment: Razorpay or COD
            → Frontend opens Razorpay modal
            → On success → Backend verifies signature
         ↓
-Order saved to MongoDB
+Order saved to Supabase (PostgreSQL)
         ↓
 Emails sent (customer + admin via Nodemailer)
         ↓

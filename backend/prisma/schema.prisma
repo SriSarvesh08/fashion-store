@@ -1,0 +1,126 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Admin {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username       String    @unique
+  password       String
+  email          String?
+  last_login     DateTime? @db.Timestamptz
+  otp_code       String?
+  otp_expires_at DateTime? @db.Timestamptz
+  otp_attempts   Int?      @default(0)
+  created_at     DateTime? @default(now()) @db.Timestamptz
+  updated_at     DateTime? @default(now()) @db.Timestamptz
+
+  @@map("admins")
+}
+
+model Product {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String
+  slug              String?   @unique
+  description       String?
+  short_description String?
+  price             Decimal   @db.Decimal
+  discount_price    Decimal?  @db.Decimal
+  category          String
+  material          String?
+  occasion          String[]  @default([])
+  colors            String[]  @default([])
+  images            Json?     @default("[]")
+  video_url         String?
+  worn_image_url    String?
+  stock             Int?      @default(100)
+  sizes             Json?     @default("[]")
+  is_featured       Boolean?  @default(false)
+  is_active         Boolean?  @default(true)
+  tags              String[]  @default([])
+  delivery_time     String?   @default("3-5 business days")
+  return_policy     String?   @default("7-day easy return & exchange")
+  ratings_average   Decimal?  @default(0) @db.Decimal
+  ratings_count     Int?      @default(0)
+  sold_count        Int?      @default(0)
+  instagram_reel_url String?
+  seo_title         String?
+  seo_description   String?
+  created_at        DateTime? @default(now()) @db.Timestamptz
+  updated_at        DateTime? @default(now()) @db.Timestamptz
+
+  @@map("products")
+  @@index([category])
+  @@index([is_featured])
+  @@index([price])
+  @@index([slug])
+}
+
+model Order {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id           String    @unique
+  customer           Json
+  items              Json      @default("[]")
+  pricing            Json
+  coupon_code        String?
+  payment            Json
+  status             String?   @default("confirmed")
+  status_history     Json?     @default("[]")
+  tracking           Json?     @default("{}")
+  estimated_delivery DateTime? @db.Timestamptz
+  delivered_at       DateTime? @db.Timestamptz
+  notes              String?
+  email_sent         Json?     @default("{\"customer\": false, \"admin\": false}")
+  created_at         DateTime? @default(now()) @db.Timestamptz
+  updated_at         DateTime? @default(now()) @db.Timestamptz
+  returns            Return[]
+
+  @@map("orders")
+  @@index([order_id])
+  @@index([status, created_at(sort: Desc)])
+  @@index([created_at(sort: Desc)])
+}
+
+model Coupon {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code             String    @unique
+  type             String
+  value            Decimal   @db.Decimal
+  min_order_amount Decimal?  @default(0) @db.Decimal
+  max_discount     Decimal?  @db.Decimal
+  usage_limit      Int?
+  used_count       Int?      @default(0)
+  is_active        Boolean?  @default(true)
+  expires_at       DateTime? @db.Timestamptz
+  description      String?
+  created_at       DateTime? @default(now()) @db.Timestamptz
+  updated_at       DateTime? @default(now()) @db.Timestamptz
+
+  @@map("coupons")
+}
+
+model Return {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  return_id    String    @unique
+  order_ref    String?   @db.Uuid
+  order_id     String
+  customer     Json?
+  type         String
+  reason       String
+  description  String?
+  items        Json?     @default("[]")
+  exchange_for String?
+  status       String?   @default("requested")
+  admin_note   String?
+  images       String[]  @default([])
+  created_at   DateTime? @default(now()) @db.Timestamptz
+  updated_at   DateTime? @default(now()) @db.Timestamptz
+
+  order        Order?    @relation(fields: [order_ref], references: [id])
+
+  @@map("returns")
+}

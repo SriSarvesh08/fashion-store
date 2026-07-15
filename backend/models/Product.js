@@ -1,6 +1,4 @@
-const supabase = require('../config/supabase');
-
-const TABLE = 'products';
+const prisma = require('../config/db');
 
 // Generate slug from name + random suffix
 function generateSlug(name, id) {
@@ -11,7 +9,7 @@ function generateSlug(name, id) {
     .replace(/(^-|-$)/g, '') + '-' + suffix;
 }
 
-// Map DB row (snake_case) → API response (camelCase) to match existing frontend expectations
+// Map DB row to API response
 function toApiFormat(row) {
   if (!row) return null;
   return {
@@ -49,12 +47,12 @@ function toApiFormat(row) {
     updatedAt: row.updated_at,
     // Virtual: discount percentage
     discountPercent: (row.discount_price && row.price > row.discount_price)
-      ? Math.round(((row.price - row.discount_price) / row.price) * 100)
+      ? Math.round(((Number(row.price) - Number(row.discount_price)) / Number(row.price)) * 100)
       : 0
   };
 }
 
-// Map API input (camelCase) → DB columns (snake_case)
+// Map API input to DB columns
 function toDbFormat(body) {
   const mapped = {};
   if (body.name !== undefined) mapped.name = body.name;
@@ -93,158 +91,115 @@ const Product = {
 
   async create(body) {
     const dbData = toDbFormat(body);
-    // Insert first to get the ID, then generate slug
-    const { data, error } = await supabase
-      .from(TABLE)
-      .insert(dbData)
-      .select()
-      .single();
-    if (error) throw error;
+    const data = await prisma.product.create({ data: dbData });
 
-    // Generate slug using the ID
     const slug = generateSlug(data.name, data.id);
-    const { data: updated, error: updateErr } = await supabase
-      .from(TABLE)
-      .update({ slug })
-      .eq('id', data.id)
-      .select()
-      .single();
-    if (updateErr) throw updateErr;
+    const updated = await prisma.product.update({
+      where: { id: data.id },
+      data: { slug }
+    });
     return toApiFormat(updated);
   },
 
   async findById(id) {
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('*')
-      .eq('id', id)
-      .single();
-    if (error && error.code !== 'PGRST116') throw error;
+    const data = await prisma.product.findUnique({ where: { id } });
     return data ? toApiFormat(data) : null;
   },
 
   async findBySlug(slug) {
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('*')
-      .eq('slug', slug)
-      .eq('is_active', true)
-      .single();
-    if (error && error.code !== 'PGRST116') throw error;
+    const data = await prisma.product.findFirst({
+      where: { slug, is_active: true }
+    });
     return data ? toApiFormat(data) : null;
   },
 
   async findFeatured(limit = 8) {
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('id, name, slug, price, discount_price, images, category, ratings_average, ratings_count')
-      .eq('is_featured', true)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(limit);
-    if (error) throw error;
-    return (data || []).map(toApiFormat);
+    const data = await prisma.product.findMany({
+      where: { is_featured: true, is_active: true },
+      orderBy: { created_at: 'desc' },
+      take: limit,
+      select: {
+        id: true, name: true, slug: true, price: true, discount_price: true,
+        images: true, category: true, ratings_average: true, ratings_count: true
+      }
+    });
+    return data.map(toApiFormat);
   },
 
   async findWithFilters({ category, color, material, occasion, minPrice, maxPrice, sort, search, featured, page = 1, limit = 20 }) {
-    let query = supabase.from(TABLE).select('*', { count: 'exact' }).eq('is_active', true);
+    const where = { is_active: true };
 
-    if (category) query = query.eq('category', category);
-    if (material) query = query.eq('material', material);
-    if (occasion) query = query.contains('occasion', [occasion]);
-    if (color) query = query.contains('colors', [color]);
-    if (featured === 'true') query = query.eq('is_featured', true);
-
-    // Price filtering — use the effective price (discount_price if exists, otherwise price)
-    if (minPrice) query = query.gte('price', Number(minPrice));
-    if (maxPrice) query = query.lte('price', Number(maxPrice));
-
-    // Full-text search
+    if (category) where.category = category;
+    if (material) where.material = material;
+    if (occasion) where.occasion = { has: occasion };
+    if (color) where.colors = { has: color };
+    if (featured === 'true') where.is_featured = true;
+    if (minPrice || maxPrice) {
+      where.price = {};
+      if (minPrice) where.price.gte = Number(minPrice);
+      if (maxPrice) where.price.lte = Number(maxPrice);
+    }
     if (search) {
-      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
+      ];
     }
 
-    // Sorting
     const sortMap = {
-      'price-asc': { column: 'price', ascending: true },
-      'price-desc': { column: 'price', ascending: false },
-      'newest': { column: 'created_at', ascending: false },
-      'popular': { column: 'sold_count', ascending: false },
-      'rating': { column: 'ratings_average', ascending: false }
+      'price-asc': { price: 'asc' },
+      'price-desc': { price: 'desc' },
+      'newest': { created_at: 'desc' },
+      'popular': { sold_count: 'desc' },
+      'rating': { ratings_average: 'desc' }
     };
-    const sortConfig = sortMap[sort] || { column: 'created_at', ascending: false };
-    query = query.order(sortConfig.column, { ascending: sortConfig.ascending });
+    const orderBy = sortMap[sort] || { created_at: 'desc' };
 
-    // Pagination
-    const from = (Number(page) - 1) * Number(limit);
-    const to = from + Number(limit) - 1;
-    query = query.range(from, to);
+    const skip = (Number(page) - 1) * Number(limit);
 
-    const { data, error, count } = await query;
-    if (error) throw error;
+    const [data, count] = await Promise.all([
+      prisma.product.findMany({ where, orderBy, skip, take: Number(limit) }),
+      prisma.product.count({ where })
+    ]);
 
     return {
-      products: (data || []).map(toApiFormat),
+      products: data.map(toApiFormat),
       pagination: {
-        total: count || 0,
+        total: count,
         page: Number(page),
-        pages: Math.ceil((count || 0) / Number(limit)),
+        pages: Math.ceil(count / Number(limit)),
         limit: Number(limit)
       }
     };
   },
 
   async countActive() {
-    const { count, error } = await supabase
-      .from(TABLE)
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true);
-    if (error) throw error;
-    return count || 0;
+    return await prisma.product.count({ where: { is_active: true } });
   },
 
   async update(id, body) {
     const dbData = toDbFormat(body);
-    dbData.updated_at = new Date().toISOString();
-    const { data, error } = await supabase
-      .from(TABLE)
-      .update(dbData)
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
+    dbData.updated_at = new Date();
+    const data = await prisma.product.update({ where: { id }, data: dbData });
     return data ? toApiFormat(data) : null;
   },
 
   async softDelete(id) {
-    const { data, error } = await supabase
-      .from(TABLE)
-      .update({ is_active: false, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
+    const data = await prisma.product.update({
+      where: { id },
+      data: { is_active: false, updated_at: new Date() }
+    });
     return data ? toApiFormat(data) : null;
   },
 
-  // Decrement stock and increment sold count
   async decrementStock(id, quantity) {
-    // Use raw rpc or two-step: read then update
-    const { data: product, error: readErr } = await supabase
-      .from(TABLE)
-      .select('stock, sold_count')
-      .eq('id', id)
-      .single();
-    if (readErr) throw readErr;
-
-    const { error } = await supabase
-      .from(TABLE)
-      .update({
-        stock: (product.stock || 0) - quantity,
-        sold_count: (product.sold_count || 0) + quantity
-      })
-      .eq('id', id);
-    if (error) throw error;
+    await prisma.product.update({
+      where: { id },
+      data: {
+        stock: { decrement: quantity },
+        sold_count: { increment: quantity }
+      }
+    });
   }
 };
 

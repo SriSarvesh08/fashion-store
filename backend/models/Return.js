@@ -1,5 +1,4 @@
-const supabase = require('../config/supabase');
-const TABLE = 'returns';
+const prisma = require('../config/db');
 
 function generateReturnId() {
   return 'RET-' + Date.now().toString().slice(-8).toUpperCase();
@@ -20,24 +19,39 @@ function toApiFormat(row) {
 
 const Return = {
   toApiFormat,
+
   async create({ orderRef, orderId, customer, type, reason, description, items, exchangeFor }) {
-    const { data, error } = await supabase.from(TABLE).insert({
-      return_id: generateReturnId(), order_ref: orderRef, order_id: orderId,
-      customer, type, reason, description, items: items || [], exchange_for: exchangeFor
-    }).select().single();
-    if (error) throw error;
+    const data = await prisma.return.create({
+      data: {
+        return_id: generateReturnId(),
+        order_ref: orderRef,
+        order_id: orderId,
+        customer,
+        type,
+        reason,
+        description,
+        items: items || [],
+        exchange_for: exchangeFor
+      }
+    });
     return toApiFormat(data);
   },
+
   async findAll() {
-    const { data, error } = await supabase.from(TABLE).select('*').order('created_at', { ascending: false });
-    if (error) throw error;
-    return (data || []).map(toApiFormat);
+    const data = await prisma.return.findMany({
+      orderBy: { created_at: 'desc' }
+    });
+    return data.map(toApiFormat);
   },
+
   async updateStatus(id, { status, adminNote }) {
-    const update = { status, updated_at: new Date().toISOString() };
+    const update = { status, updated_at: new Date() };
     if (adminNote !== undefined) update.admin_note = adminNote;
-    const { data, error } = await supabase.from(TABLE).update(update).eq('id', id).select().single();
-    if (error) throw error;
+    
+    const data = await prisma.return.update({
+      where: { id },
+      data: update
+    });
     return data ? toApiFormat(data) : null;
   }
 };

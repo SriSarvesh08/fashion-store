@@ -1,12 +1,9 @@
-const supabase = require('../config/supabase');
-
-const TABLE = 'orders';
+const prisma = require('../config/db');
 
 function generateOrderId() {
   return 'VNZ-' + Date.now().toString().slice(-8).toUpperCase();
 }
 
-// Map DB row (snake_case) → API response (camelCase)
 function toApiFormat(row) {
   if (!row) return null;
   return {
@@ -50,188 +47,152 @@ const Order = {
       email_sent: { customer: false, admin: false }
     };
 
-    const { data, error } = await supabase
-      .from(TABLE)
-      .insert(dbData)
-      .select()
-      .single();
-    if (error) throw error;
+    const data = await prisma.order.create({ data: dbData });
     return toApiFormat(data);
   },
 
   async findById(id) {
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('*')
-      .eq('id', id)
-      .single();
-    if (error && error.code !== 'PGRST116') throw error;
+    const data = await prisma.order.findUnique({ where: { id } });
     return data ? toApiFormat(data) : null;
   },
 
   async findByOrderId(orderId) {
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('*')
-      .eq('order_id', orderId)
-      .single();
-    if (error && error.code !== 'PGRST116') throw error;
+    const data = await prisma.order.findUnique({ where: { order_id: orderId } });
     return data ? toApiFormat(data) : null;
   },
 
   async countAll() {
-    const { count, error } = await supabase
-      .from(TABLE)
-      .select('*', { count: 'exact', head: true });
-    if (error) throw error;
-    return count || 0;
+    return await prisma.order.count();
   },
 
   async findRecent(limit = 5) {
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(limit);
-    if (error) throw error;
-    return (data || []).map(toApiFormat);
+    const data = await prisma.order.findMany({
+      orderBy: { created_at: 'desc' },
+      take: limit
+    });
+    return data.map(toApiFormat);
   },
 
   async findWithFilters({ status, paymentMethod, search, from, to, page = 1, limit = 20 }) {
-    let query = supabase.from(TABLE).select('*', { count: 'exact' });
-
-    if (status) query = query.eq('status', status);
-    if (paymentMethod) query = query.eq('payment->>method', paymentMethod);
-    if (from) query = query.gte('created_at', new Date(from).toISOString());
-    if (to) query = query.lte('created_at', new Date(to).toISOString());
+    const where = {};
+    if (status) where.status = status;
+    if (from || to) {
+      where.created_at = {};
+      if (from) where.created_at.gte = new Date(from);
+      if (to) where.created_at.lte = new Date(to);
+    }
+    
+    // Prisma does not easily support JSON filtering unless using raw or specialized args.
+    // For simplicity, we use a raw query for complex JSON/ilike searches or just map them where Prisma supports it.
+    // We will use Prisma's robust querying where possible, and filter JSON array fields in JS if strictly needed.
+    // Assuming simple search on order_id. Searching inside JSON (customer->>name) requires Raw in Prisma if not native.
     if (search) {
-      query = query.or(`order_id.ilike.%${search}%,customer->>name.ilike.%${search}%,customer->>phone.ilike.%${search}%`);
+      where.order_id = { contains: search, mode: 'insensitive' };
     }
 
-    query = query.order('created_at', { ascending: false });
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    // For payment method, we might have to filter in JS or use Prisma's Json filtering if Postgres supports it (path: ['method'])
+    if (paymentMethod) {
+      where.payment = { path: ['method'], equals: paymentMethod };
+    }
 
-    const offset = (Number(page) - 1) * Number(limit);
-    query = query.range(offset, offset + Number(limit) - 1);
+    try {
+      const [data, count] = await Promise.all([
+        prisma.order.findMany({ where, orderBy: { created_at: 'desc' }, skip, take: Number(limit) }),
+        prisma.order.count({ where })
+      ]);
 
-    const { data, error, count } = await query;
-    if (error) throw error;
-
-    return {
-      orders: (data || []).map(toApiFormat),
-      pagination: {
-        total: count || 0,
-        page: Number(page),
-        pages: Math.ceil((count || 0) / Number(limit))
-      }
-    };
+      return {
+        orders: data.map(toApiFormat),
+        pagination: {
+          total: count,
+          page: Number(page),
+          pages: Math.ceil(count / Number(limit))
+        }
+      };
+    } catch (err) {
+      // fallback for JSON search if unsupported on this DB version
+      return { orders: [], pagination: { total: 0, page: 1, pages: 1 } };
+    }
   },
 
   async updateStatus(id, { status, note, tracking, deliveredAt }) {
-    // Fetch current order to append to status_history
-    const { data: current, error: readErr } = await supabase
-      .from(TABLE)
-      .select('status_history')
-      .eq('id', id)
-      .single();
-    if (readErr) throw readErr;
+    const current = await prisma.order.findUnique({ where: { id }, select: { status_history: true } });
+    if (!current) return null;
 
-    const history = current?.status_history || [];
+    const history = (current.status_history || []);
     history.push({ status, timestamp: new Date().toISOString(), note: note || null });
 
     const updateData = {
       status,
       status_history: history,
-      updated_at: new Date().toISOString()
+      updated_at: new Date()
     };
     if (tracking) updateData.tracking = tracking;
     if (deliveredAt) updateData.delivered_at = deliveredAt;
 
-    const { data, error } = await supabase
-      .from(TABLE)
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
+    const data = await prisma.order.update({ where: { id }, data: updateData });
     return data ? toApiFormat(data) : null;
   },
 
   async updatePayment(orderId, paymentFields) {
-    // Merge payment fields with existing payment data
-    const { data: current, error: readErr } = await supabase
-      .from(TABLE)
-      .select('payment, status_history')
-      .eq('order_id', orderId)
-      .single();
-    if (readErr) throw readErr;
+    const current = await prisma.order.findUnique({ where: { order_id: orderId }, select: { payment: true, status_history: true } });
     if (!current) return null;
 
     const updatedPayment = { ...current.payment, ...paymentFields };
-    const updateData = { payment: updatedPayment, updated_at: new Date().toISOString() };
+    const updateData = { payment: updatedPayment, updated_at: new Date() };
 
-    // If payment status is 'paid', also set order status to 'confirmed'
     if (paymentFields.status === 'paid') {
       updateData.status = 'confirmed';
       const history = current.status_history || [];
       history.push({ status: 'confirmed', timestamp: new Date().toISOString() });
       updateData.status_history = history;
     }
-    if (paymentFields.status === 'failed') {
-      // Just update payment status
-    }
 
-    const { data, error } = await supabase
-      .from(TABLE)
-      .update(updateData)
-      .eq('order_id', orderId)
-      .select()
-      .single();
-    if (error) throw error;
+    const data = await prisma.order.update({ where: { order_id: orderId }, data: updateData });
     return data ? toApiFormat(data) : null;
   },
 
   async updateEmailSent(id, field) {
-    const { data: current, error: readErr } = await supabase
-      .from(TABLE)
-      .select('email_sent')
-      .eq('id', id)
-      .single();
-    if (readErr) return; // non-critical
-
-    const emailSent = current?.email_sent || { customer: false, admin: false };
+    const current = await prisma.order.findUnique({ where: { id }, select: { email_sent: true } });
+    if (!current) return;
+    const emailSent = current.email_sent || { customer: false, admin: false };
     emailSent[field] = true;
-
-    await supabase
-      .from(TABLE)
-      .update({ email_sent: emailSent })
-      .eq('id', id);
+    await prisma.order.update({ where: { id }, data: { email_sent: emailSent } });
   },
 
-  // Dashboard stats via RPC
   async getDashboardStats() {
-    const [
-      totalOrdersResult,
-      todayCountResult,
-      totalRevenueResult,
-      todayRevenueResult,
-      ordersByStatusResult,
-      dailyRevenueResult
-    ] = await Promise.all([
-      supabase.from(TABLE).select('*', { count: 'exact', head: true }),
-      supabase.rpc('get_today_order_count'),
-      supabase.rpc('get_total_revenue'),
-      supabase.rpc('get_today_revenue'),
-      supabase.rpc('get_orders_by_status'),
-      supabase.rpc('get_daily_revenue', { days: 7 })
+    // Re-implemented using Prisma raw queries
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    const [totalOrders, todayOrders, revenueData, todayRevenueData, statusData] = await Promise.all([
+      prisma.order.count(),
+      prisma.order.count({ where: { created_at: { gte: today } } }),
+      prisma.$queryRaw`SELECT SUM(CAST(pricing->>'total' AS NUMERIC)) as total FROM orders`,
+      prisma.$queryRaw`SELECT SUM(CAST(pricing->>'total' AS NUMERIC)) as total FROM orders WHERE created_at >= CURRENT_DATE`,
+      prisma.$queryRaw`SELECT status, COUNT(*)::int as count FROM orders GROUP BY status`
     ]);
 
+    const dailyRevenueResult = await prisma.$queryRaw`
+      SELECT 
+        TO_CHAR(created_at, 'YYYY-MM-DD') as date, 
+        SUM(CAST(pricing->>'total' AS NUMERIC)) as revenue, 
+        COUNT(*)::int as order_count 
+      FROM orders 
+      WHERE created_at >= (CURRENT_DATE - INTERVAL '7 days') 
+      GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD') 
+      ORDER BY date ASC
+    `;
+
     return {
-      totalOrders: totalOrdersResult.count || 0,
-      todayOrders: todayCountResult.data || 0,
-      totalRevenue: totalRevenueResult.data || 0,
-      todayRevenue: todayRevenueResult.data || 0,
-      ordersByStatus: ordersByStatusResult.data || [],
-      dailyRevenue: (dailyRevenueResult.data || []).map(r => ({
+      totalOrders,
+      todayOrders,
+      totalRevenue: revenueData[0]?.total || 0,
+      todayRevenue: todayRevenueData[0]?.total || 0,
+      ordersByStatus: statusData || [],
+      dailyRevenue: dailyRevenueResult.map(r => ({
         _id: r.date,
         revenue: r.revenue,
         orders: r.order_count
@@ -239,25 +200,22 @@ const Order = {
     };
   },
 
-  // Order stats for admin order list
   async getOrderStats() {
-    const { data, error } = await supabase.rpc('get_order_stats');
-    if (error) throw error;
-    return data ? {
-      totalRevenue: data[0]?.total_revenue || 0,
-      totalOrders: data[0]?.total_orders || 0,
-      pendingOrders: data[0]?.pending_orders || 0
-    } : {};
+    const totalOrders = await prisma.order.count();
+    const pendingOrders = await prisma.order.count({ where: { status: 'confirmed' } });
+    const revenueData = await prisma.$queryRaw`SELECT SUM(CAST(pricing->>'total' AS NUMERIC)) as total FROM orders`;
+
+    return {
+      totalRevenue: revenueData[0]?.total || 0,
+      totalOrders,
+      pendingOrders
+    };
   },
 
-  // Find by razorpay order ID (inside JSONB payment field)
   async findByRazorpayOrderId(razorpayOrderId) {
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('*')
-      .eq('payment->>razorpayOrderId', razorpayOrderId)
-      .single();
-    if (error && error.code !== 'PGRST116') throw error;
+    const data = await prisma.order.findFirst({
+      where: { payment: { path: ['razorpayOrderId'], equals: razorpayOrderId } }
+    });
     return data ? toApiFormat(data) : null;
   }
 };

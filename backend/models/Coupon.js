@@ -1,5 +1,4 @@
-const supabase = require('../config/supabase');
-const TABLE = 'coupons';
+const prisma = require('../config/db');
 
 function toApiFormat(row) {
   if (!row) return null;
@@ -46,28 +45,50 @@ function calculateDiscount(coupon, amount) {
 
 const Coupon = {
   toApiFormat, toDbFormat, isValid, calculateDiscount,
+  
   async findByCode(code) {
-    const { data, error } = await supabase.from(TABLE).select('*').eq('code', code.toUpperCase()).single();
-    if (error && error.code !== 'PGRST116') throw error;
+    const data = await prisma.coupon.findUnique({
+      where: { code: code.toUpperCase() }
+    });
     return data ? toApiFormat(data) : null;
   },
+
   async findAll() {
-    const { data, error } = await supabase.from(TABLE).select('*').order('created_at', { ascending: false });
-    if (error) throw error;
-    return (data || []).map(toApiFormat);
+    const data = await prisma.coupon.findMany({
+      orderBy: { created_at: 'desc' }
+    });
+    return data.map(toApiFormat);
   },
+
   async create(body) {
-    const { data, error } = await supabase.from(TABLE).insert(toDbFormat(body)).select().single();
-    if (error) { if (error.code === '23505') { const e = new Error('Coupon code already exists'); e.code = 11000; throw e; } throw error; }
-    return toApiFormat(data);
+    try {
+      const data = await prisma.coupon.create({
+        data: toDbFormat(body)
+      });
+      return toApiFormat(data);
+    } catch (error) {
+      if (error.code === 'P2002') { 
+        const e = new Error('Coupon code already exists'); 
+        e.code = 11000; 
+        throw e; 
+      }
+      throw error;
+    }
   },
+
   async delete(id) {
-    const { error } = await supabase.from(TABLE).delete().eq('id', id);
-    if (error) throw error;
+    await prisma.coupon.delete({
+      where: { id }
+    });
   },
+
   async incrementUsedCount(id) {
-    const { data: c } = await supabase.from(TABLE).select('used_count').eq('id', id).single();
-    await supabase.from(TABLE).update({ used_count: (c?.used_count || 0) + 1 }).eq('id', id);
+    await prisma.coupon.update({
+      where: { id },
+      data: {
+        used_count: { increment: 1 }
+      }
+    });
   }
 };
 
