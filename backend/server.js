@@ -29,8 +29,8 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ─── CORS ───────────────────────────────────────────────────────────────────
 const allowedOrigins = process.env.NODE_ENV === 'production' 
-  ? [process.env.FRONTEND_URL]
-  : [process.env.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173'];
+  ? [process.env.FRONTEND_URL, process.env.ADMIN_FRONTEND_URL]
+  : [process.env.FRONTEND_URL, process.env.ADMIN_FRONTEND_URL, 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'];
 
 app.use(cors({
   origin: (origin, callback) => {
