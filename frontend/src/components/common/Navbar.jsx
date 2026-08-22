@@ -10,6 +10,8 @@ const categories = [
   { label: 'Chains', slug: 'chains' },
   { label: 'Rings', slug: 'rings' },
   { label: 'Necklaces', slug: 'necklaces' },
+  { label: 'Bracelets', slug: 'bracelets' },
+  { label: 'Dresses', slug: 'dresses' },
 ];
 
 export default function Navbar() {
@@ -18,7 +20,7 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCategories, setShowCategories] = useState(false);
-  const { cartCount, cartDispatch } = useCart();
+  const { cartCount } = useCart();
   const { wishlist } = useWishlist();
   const navigate = useNavigate();
   const location = useLocation();
@@ -43,7 +45,6 @@ export default function Navbar() {
     }
   };
 
-  // Expose cart drawer open via custom event
   const openCart = () => {
     window.dispatchEvent(new CustomEvent('openCart'));
   };
@@ -52,7 +53,7 @@ export default function Navbar() {
     <header className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white shadow-sm' : 'bg-white/95 backdrop-blur-sm'}`}>
       {/* Top bar */}
       <div className="bg-blush-600 text-white text-center py-1.5 text-xs font-body">
-        🚚 Free shipping on orders above ₹500 &nbsp;|&nbsp; 💎 Quality assured accessories
+        🚚 Free shipping above ₹500 &nbsp;|&nbsp; 💎 Premium Quality Guaranteed
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -62,7 +63,7 @@ export default function Navbar() {
             <h1 className="font-display text-xl md:text-2xl text-blush-700 leading-none">
               Vino'z <span className="italic">Fashion</span>
             </h1>
-            <p className="text-[9px] tracking-[0.2em] text-blush-400 uppercase font-body">Women's Accessories</p>
+            <p className="text-[9px] tracking-[0.2em] text-blush-400 uppercase font-body">Where Style Meets Elegance</p>
           </Link>
 
           {/* Desktop Nav */}
@@ -94,7 +95,6 @@ export default function Navbar() {
 
           {/* Right icons */}
           <div className="flex items-center gap-3">
-            {/* Search */}
             {searchOpen ? (
               <form onSubmit={handleSearch} className="flex items-center">
                 <input
@@ -114,7 +114,6 @@ export default function Navbar() {
               </button>
             )}
 
-            {/* Wishlist */}
             <Link to="/wishlist" className="relative p-2 text-gray-600 hover:text-blush-600 transition-colors">
               <Heart size={20} />
               {wishlist.length > 0 && (
@@ -124,7 +123,6 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* Cart */}
             <button onClick={openCart} className="relative p-2 text-gray-600 hover:text-blush-600 transition-colors">
               <ShoppingBag size={20} />
               {cartCount > 0 && (
@@ -134,7 +132,6 @@ export default function Navbar() {
               )}
             </button>
 
-            {/* Mobile menu */}
             <button className="md:hidden p-2 text-gray-600" onClick={() => setIsOpen(!isOpen)}>
               {isOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
@@ -145,7 +142,7 @@ export default function Navbar() {
       {/* Mobile Menu */}
       {isOpen && (
         <div className="md:hidden bg-white border-t border-blush-100 animate-slide-up">
-          <div className="px-4 py-4 space-y-1">
+          <div className="px-4 py-4 space-y-1 h-[70vh] overflow-y-auto">
             <Link to="/" className="block py-2.5 text-sm font-body text-gray-700 border-b border-gray-50">Home</Link>
             <Link to="/products" className="block py-2.5 text-sm font-body text-gray-700 border-b border-gray-50">All Products</Link>
             {categories.map(c => (

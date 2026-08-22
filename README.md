@@ -1,188 +1,174 @@
-# Vino'z Fashion — Full-Stack eCommerce
+# Vino'z Fashion eCommerce
 
-> Production-ready women's accessories store built with React + Node.js + PostgreSQL (Supabase) + Razorpay
+Vino'z Fashion is a full-stack, production-ready eCommerce application built with React, Node.js, and PostgreSQL. It features a modern pastel blush design, complete Razorpay payment integration, order tracking, and a comprehensive Admin management dashboard.
 
----
+## Tech Stack
 
-## 🗂 Project Structure
+| Layer | Technologies |
+|-------|--------------|
+| **Frontend** | React 18, Vite, Tailwind CSS, React Router v6, Axios, lucide-react |
+| **Backend** | Node.js, Express, `pg` (raw SQL queries), JWT, bcryptjs |
+| **Database** | PostgreSQL |
+| **Payments** | Razorpay |
+| **Emails** | Nodemailer (Gmail SMTP) |
+
+## Project Structure
 
 ```
 vinoz-fashion/
-├── frontend/          ← React + Tailwind (deploy to Vercel)
-└── backend/           ← Node.js + Express (deploy to Railway/Render)
+├── backend/
+│   ├── db/
+│   │   ├── index.js          # PostgreSQL pool connection
+│   │   ├── migrate.js        # Standalone migration script
+│   │   ├── schema.sql        # Database schema definitions
+│   │   └── seed.sql          # Initial seed data
+│   ├── controllers/          # Express route controllers
+│   ├── middleware/           # Auth and validation middleware
+│   ├── routes/               # API route definitions
+│   ├── services/             # Email service wrapper
+│   ├── server.js             # Main application entry point
+│   └── package.json
+└── frontend/
+    ├── src/
+    │   ├── components/       # Reusable React components (Admin, Cart, Common, Product)
+    │   ├── context/          # React Context (Cart, Wishlist)
+    │   ├── hooks/            # Custom hooks (useProducts, useAdminGuard)
+    │   ├── pages/            # Shop and Admin page views
+    │   ├── styles/           # Global Tailwind CSS styles
+    │   ├── utils/            # API interceptors and helpers
+    │   ├── App.jsx           # Main routing shell
+    │   └── main.jsx
+    ├── index.html
+    ├── tailwind.config.js
+    └── vercel.json           # Vercel SPA routing config
 ```
 
----
-
-## ⚡ Quick Start (Local Development)
+## Local Development Setup
 
 ### 1. Backend Setup
-
 ```bash
 cd backend
 npm install
 cp .env.example .env
-# Fill in your credentials in .env
-npm run dev
-# Server runs on http://localhost:5000
+```
+Fill in the credentials in `.env` (PostgreSQL, Razorpay, Gmail SMTP).
+
+### 2. Database Initialization
+Ensure you have PostgreSQL running. Create a database:
+```sql
+CREATE DATABASE vinoz_fashion;
+```
+Run the migration script to apply schema and seed data:
+```bash
+npm run migrate
 ```
 
-### 2. Frontend Setup
+### 3. Start Backend
+```bash
+npm run dev
+```
+The backend will run on `http://localhost:5000`.
 
+### 4. Frontend Setup
 ```bash
 cd frontend
 npm install
 cp .env.example .env.local
-# .env.local → VITE_API_URL=http://localhost:5000/api
+```
+Set `VITE_API_URL=http://localhost:5000/api` in `.env.local` if not already set.
+
+### 5. Start Frontend
+```bash
 npm run dev
-# App runs on http://localhost:3000
 ```
+The frontend will run on `http://localhost:3000` (or `5173`).
 
----
+## Configuration Notes
 
-## 🔐 Environment Variables (Backend)
+### Razorpay Setup
+To enable webhook notifications for payment capture and failures, add this URL to your Razorpay Webhook settings:
+`https://your-backend-url/api/payments/webhook`
 
-| Variable | Description |
-|---|---|
-| `SUPABASE_URL` | Supabase Project URL |
-| `SUPABASE_SERVICE_KEY` | Supabase Service Role Key |
-| `JWT_SECRET` | Random strong secret (32+ chars) |
-| `RAZORPAY_KEY_ID` | Razorpay live/test key ID |
-| `RAZORPAY_KEY_SECRET` | Razorpay secret key |
-| `SMTP_HOST` | SMTP host (smtp.gmail.com) |
-| `SMTP_PORT` | 587 for TLS |
-| `SMTP_USER` | Your Gmail address |
-| `SMTP_PASS` | Gmail App Password |
-| `ADMIN_EMAIL` | Email to receive order notifications |
-| `ADMIN_USERNAME` | Admin panel username |
-| `ADMIN_PASSWORD` | Admin panel password |
-| `FRONTEND_URL` | Your deployed frontend URL (for CORS) |
+Subscribe to these events:
+- `payment.captured`
+- `payment.failed`
 
----
+### Gmail SMTP Setup
+To send order confirmation emails, you must configure a Gmail App Password:
+1. Go to Google Account Security.
+2. Enable 2-Step Verification.
+3. Search for "App Passwords".
+4. Generate a new app password for "Mail".
+5. Use the 16-character string as `SMTP_PASS` in your backend `.env`.
 
-## 🚀 Production Deployment
+### Admin Panel
+- **URL**: `/admin`
+- **Initial Login**: Use `ADMIN_USERNAME` and `ADMIN_PASSWORD` from your `.env` file (these are injected during migration/seed).
+- **Features**: Dashboard stats, full CRUD for products, order status management (with tracking info), return request handling, and coupon generation.
 
-### Backend → Railway
+## API Reference
 
-1. Push backend folder to GitHub
-2. Create new Railway project → Deploy from GitHub
-3. Add all environment variables in Railway dashboard
-4. Railway auto-detects Node.js and deploys
+| Method | Path | Auth Req? | Description |
+|--------|------|-----------|-------------|
+| GET | `/api/products` | No | Get products (with filters & pagination) |
+| GET | `/api/products/:slug` | No | Get single product by slug |
+| GET | `/api/products/featured/list` | No | Get up to 8 featured products |
+| POST | `/api/products` | Yes | Create new product |
+| PUT | `/api/products/:id` | Yes | Update product |
+| DELETE | `/api/products/:id` | Yes | Delete product |
+| POST | `/api/orders` | No | Place a new order |
+| GET | `/api/orders/track/:id` | No | Track order by ID and phone |
+| GET | `/api/orders` | Yes | Get all orders |
+| PATCH | `/api/orders/:id/status` | Yes | Update order status and tracking info |
+| POST | `/api/payments/create-order` | No | Create Razorpay order |
+| POST | `/api/payments/verify` | No | Verify Razorpay payment signature |
+| POST | `/api/payments/webhook` | No | Razorpay webhook listener |
+| POST | `/api/coupons/validate` | No | Validate a coupon code |
+| GET | `/api/coupons` | Yes | Get all coupons |
+| POST | `/api/coupons` | Yes | Create new coupon |
+| DELETE | `/api/coupons/:id` | Yes | Delete coupon |
+| POST | `/api/returns` | No | Submit a return/exchange request |
+| GET | `/api/returns` | Yes | Get all return requests |
+| PATCH | `/api/returns/:id` | Yes | Update return request status |
+| POST | `/api/admin/login` | No | Admin login (returns JWT) |
+| GET | `/api/admin/dashboard` | Yes | Get dashboard statistics |
 
-### Frontend → Vercel
-
-1. Push frontend folder to GitHub
-2. Import to Vercel
-3. Set `VITE_API_URL` = your Railway backend URL
-4. Deploy
-
-### Database → PostgreSQL (Supabase)
-
-1. Create free project at supabase.com
-2. Run the `backend/supabase-schema.sql` in the SQL Editor to set up tables
-3. Copy URL and Service Role Key to `.env`
-
----
-
-## 💳 Razorpay Setup
-
-1. Create account at razorpay.com
-2. Go to Settings → API Keys
-3. Copy Key ID and Key Secret to `.env`
-4. For production: complete KYC and switch to live keys
-5. Add webhook URL: `https://your-backend.railway.app/api/payments/webhook`
-   - Events to enable: `payment.captured`, `payment.failed`
-
----
-
-## 📧 Gmail SMTP Setup
-
-1. Enable 2FA on your Gmail account
-2. Go to Google Account → Security → App Passwords
-3. Generate app password for "Mail"
-4. Use that password as `SMTP_PASS`
-
----
-
-## 🛠 Admin Panel
-
-Access: `https://your-frontend.vercel.app/admin`
-
-Default login: Set `ADMIN_USERNAME` and `ADMIN_PASSWORD` in backend `.env`
-
-Features:
-- 📊 Dashboard with revenue stats
-- 📦 Product management (add/edit/delete)
-- 🛍️ Order management (update status, add tracking)
-- 🔁 Returns & exchanges
-- 🎟️ Coupon/discount management
-
----
-
-## 📦 Order Flow
+## Order Flow Diagram
 
 ```
-Customer adds to cart (localStorage)
-        ↓
-Checkout (name, phone, address)
-        ↓
-Choose payment: Razorpay or COD
-        ↓
-[Razorpay] → Backend creates Razorpay order
-           → Frontend opens Razorpay modal
-           → On success → Backend verifies signature
-        ↓
-Order saved to Supabase (PostgreSQL)
-        ↓
-Emails sent (customer + admin via Nodemailer)
-        ↓
-Admin updates status → Email sent to customer
+[ Cart ] -> (Proceed to Checkout) -> [ Checkout Form ]
+                                           |
+                              +------------+-------------+
+                              |                          |
+                        (Pay Online)                   (COD)
+                              |                          |
+                     [ API: Create Order ]      [ API: Create Order ]
+                              |                          |
+                  [ API: Create RZP Order ]    (Order Created Successfully)
+                              |                          |
+                     [ Razorpay Modal ]                  |
+                              |                          |
+                        (User Pays)                      |
+                              |                          |
+                   [ API: Verify Signature ]             |
+                              |                          |
+                    (Email Triggered) <------------------+
+                              |
+                    [ Order Success Page ]
 ```
 
----
-
-## 🎟 Coupon Codes
-
-Create coupons in Admin Panel:
-- `WELCOME10` → 10% off on first order
-- `FLAT50` → ₹50 off on orders above ₹300
-- etc.
-
----
-
-## 📱 Features Summary
+## Features Checklist
 
 | Feature | Status |
-|---|---|
-| Product listing with filters | ✅ |
-| Product detail with zoom | ✅ |
-| Cart (localStorage) | ✅ |
-| Wishlist (localStorage) | ✅ |
-| Guest checkout | ✅ |
-| Razorpay payment | ✅ |
-| COD payment | ✅ |
-| Order confirmation emails | ✅ |
-| Admin email notifications | ✅ |
-| Order tracking | ✅ |
-| Return/exchange requests | ✅ |
-| Admin dashboard | ✅ |
-| Product management | ✅ |
-| Order management | ✅ |
-| Coupon system | ✅ |
-| Mobile responsive | ✅ |
-| Free shipping logic | ✅ |
-
----
-
-## 🔒 Security Notes
-
-- All admin routes require JWT token
-- Razorpay signature verified server-side
-- Input validation on all API endpoints
-- Rate limiting on API routes
-- CORS restricted to your frontend URL
-- Environment variables for all secrets
-
----
-
-Made with 💕 for Vino'z Fashion
+|---------|--------|
+| Custom pastel UI design | ✅ |
+| Product filtering & search | ✅ |
+| Shopping cart & Wishlist | ✅ |
+| Razorpay Payment Gateway | ✅ |
+| Nodemailer Email Notifications | ✅ |
+| Order Tracking System | ✅ |
+| Returns & Exchanges Form | ✅ |
+| Custom Coupon Codes | ✅ |
+| Secure Admin Dashboard (JWT) | ✅ |
+| PostgreSQL Database Setup | ✅ |
+| Fully Responsive (Mobile-first) | ✅ |

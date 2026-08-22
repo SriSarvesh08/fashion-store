@@ -1,51 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const Return = require('../models/Return');
-const Order = require('../models/Order');
+const returnController = require('../controllers/returnController');
 const authMiddleware = require('../middleware/auth');
 
-// ─── Submit Return Request ────────────────────────────────────────────────
-router.post('/', async (req, res) => {
-  try {
-    const { orderId, type, reason, description, items, exchangeFor, phone } = req.body;
-
-    const order = await Order.findByOrderId(orderId);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-    if (order.customer.phone !== phone) return res.status(403).json({ error: 'Unauthorized' });
-    if (order.status !== 'delivered') return res.status(400).json({ error: 'Returns only accepted for delivered orders' });
-
-    const returnRequest = await Return.create({
-      orderRef: order._id, orderId,
-      customer: { name: order.customer.name, phone: order.customer.phone, email: order.customer.email },
-      type, reason, description, items, exchangeFor
-    });
-
-    res.status(201).json({ success: true, returnId: returnRequest.returnId, message: 'Return request submitted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to submit return request' });
-  }
-});
-
-// ─── ADMIN: Get All Returns ────────────────────────────────────────────────
-router.get('/', authMiddleware, async (req, res) => {
-  try {
-    const returns = await Return.findAll();
-    res.json(returns);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch returns' });
-  }
-});
-
-// ─── ADMIN: Update Return Status ──────────────────────────────────────────
-router.patch('/:id', authMiddleware, async (req, res) => {
-  try {
-    const { status, adminNote } = req.body;
-    const returnReq = await Return.updateStatus(req.params.id, { status, adminNote });
-    if (!returnReq) return res.status(404).json({ error: 'Return request not found' });
-    res.json(returnReq);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update return' });
-  }
-});
+router.post('/', returnController.submitReturn);
+router.get('/', authMiddleware, returnController.getAllReturns);
+router.patch('/:id', authMiddleware, returnController.updateReturn);
 
 module.exports = router;

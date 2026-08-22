@@ -8,11 +8,11 @@ function cartReducer(state, action) {
   switch (action.type) {
     case 'ADD': {
       const existing = state.find(
-        i => i._id === action.item._id && i.size === action.item.size && i.color === action.item.color
+        i => i.id === action.item.id && i.size === action.item.size && i.color === action.item.color
       );
       if (existing) {
         return state.map(i =>
-          i._id === action.item._id && i.size === action.item.size && i.color === action.item.color
+          i.id === action.item.id && i.size === action.item.size && i.color === action.item.color
             ? { ...i, quantity: i.quantity + (action.item.quantity || 1) }
             : i
         );
@@ -20,10 +20,10 @@ function cartReducer(state, action) {
       return [...state, { ...action.item, quantity: action.item.quantity || 1 }];
     }
     case 'REMOVE':
-      return state.filter(i => !(i._id === action.id && i.size === action.size && i.color === action.color));
+      return state.filter(i => !(i.id === action.id && i.size === action.size && i.color === action.color));
     case 'UPDATE_QTY':
       return state.map(i =>
-        i._id === action.id && i.size === action.size && i.color === action.color
+        i.id === action.id && i.size === action.size && i.color === action.color
           ? { ...i, quantity: Math.max(1, action.quantity) }
           : i
       );
@@ -38,8 +38,8 @@ function cartReducer(state, action) {
 function wishlistReducer(state, action) {
   switch (action.type) {
     case 'TOGGLE':
-      return state.find(i => i._id === action.item._id)
-        ? state.filter(i => i._id !== action.item._id)
+      return state.find(i => i.id === action.item.id)
+        ? state.filter(i => i.id !== action.item.id)
         : [...state, action.item];
     default:
       return state;
@@ -65,7 +65,7 @@ export function AppProvider({ children }) {
     localStorage.setItem('vnz_wishlist', JSON.stringify(wishlist));
   }, [wishlist]);
 
-  const cartTotal = cart.reduce((sum, i) => sum + (i.discountPrice || i.price) * i.quantity, 0);
+  const cartTotal = cart.reduce((sum, i) => sum + (parseFloat(i.discount_price || i.price)) * i.quantity, 0);
   const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0);
   const shipping = cartTotal >= 500 ? 0 : 50;
   const grandTotal = cartTotal + shipping;

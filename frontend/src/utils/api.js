@@ -32,13 +32,28 @@ api.interceptors.request.use(config => {
 
 api.interceptors.response.use(
   res => res,
-  err => {
+  async err => {
+    const config = err.config;
+    
+    // Auth handling
     if (err.response?.status === 401) {
       localStorage.removeItem('vnz_admin_token');
       if (window.location.pathname.startsWith('/admin')) {
         window.location.href = '/admin/login';
       }
+      return Promise.reject(err);
     }
+    
+    // Network error retry logic (not 4xx client errors)
+    if (!config || !config.retry) {
+      if (!err.response || err.response.status >= 500) {
+        config.retry = true;
+        // Wait 1 second before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return api(config);
+      }
+    }
+
     return Promise.reject(err);
   }
 );
@@ -69,7 +84,7 @@ export const paymentsApi = {
 
 // ─── Coupons ──────────────────────────────────────────────────────────────
 export const couponsApi = {
-  validate: (code, amount) => api.post('/coupons/validate', { code, amount }),
+  validate: (code, subtotal) => api.post('/coupons/validate', { code, subtotal }),
   getAll: () => api.get('/coupons'),
   create: (data) => api.post('/coupons', data),
   delete: (id) => api.delete(`/coupons/${id}`),

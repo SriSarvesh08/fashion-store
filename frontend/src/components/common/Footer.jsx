@@ -1,81 +1,104 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Instagram, Heart, Mail, Phone, MapPin } from 'lucide-react';
+import { Instagram, MapPin, Phone, Mail } from 'lucide-react';
 
 export default function Footer() {
+  const shopLinks = [
+    { label: 'All Products', path: '/products' },
+    { label: 'Dresses', path: '/products/dresses' },
+    { label: 'Earrings', path: '/products/earrings' },
+    { label: 'Necklaces', path: '/products/necklaces' },
+    { label: 'Bangles & Bracelets', path: '/products/bangles' },
+    { label: 'Rings', path: '/products/rings' },
+    { label: 'Hair Clips', path: '/products/hair-clips' },
+  ];
+
+  const helpLinks = [
+    { label: 'Track Order', path: '/track-order' },
+    { label: 'Shipping Policy', path: '#' },
+    { label: 'FAQ', path: '#' },
+  ];
+
   return (
-    <footer className="bg-blush-50 border-t border-blush-100 mt-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+    <footer className="bg-blush-50 pt-16 pb-8 border-t border-blush-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+
           {/* Brand */}
-          <div className="col-span-2 md:col-span-1">
-            <h2 className="font-display text-xl text-blush-700 mb-3">Vino'z <span className="italic">Fashion</span></h2>
-            <p className="text-sm text-gray-500 font-body leading-relaxed mb-4">
-              Curated women's accessories to elevate your everyday style.
+          <div>
+            <Link to="/" className="inline-block mb-4">
+              <h2 className="font-display text-2xl text-blush-800 leading-none">
+                Vino'z <span className="italic">Fashion</span>
+              </h2>
+            </Link>
+            <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+              Where Style Meets Elegance. Curated accessories and stunning dresses for the modern woman.
             </p>
-            <div className="flex gap-3">
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer"
-                className="w-9 h-9 bg-blush-100 rounded-full flex items-center justify-center text-blush-600 hover:bg-blush-200 transition-colors">
-                <Instagram size={16} />
+            <div className="flex gap-4">
+              <a href="https://www.instagram.com/vinozfashion/" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-blush-600 shadow-sm hover:bg-blush-600 hover:text-white transition-colors">
+                <Instagram size={20} />
               </a>
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Shop */}
           <div>
-            <h4 className="font-body font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Shop</h4>
-            <ul className="space-y-2">
-              {['earrings', 'hair-clips', 'bangles', 'chains'].map(c => (
-                <li key={c}>
-                  <Link to={`/products/${c}`} className="text-sm text-gray-500 hover:text-blush-600 capitalize font-body transition-colors">
-                    {c.replace('-', ' ')}
+            <h3 className="font-display text-lg text-gray-800 mb-4">Shop</h3>
+            <ul className="space-y-3">
+              {shopLinks.map(link => (
+                <li key={link.label}>
+                  <Link to={link.path} className="text-sm text-gray-600 hover:text-blush-600 transition-colors">
+                    {link.label}
                   </Link>
                 </li>
               ))}
-              <li><Link to="/products" className="text-sm text-gray-500 hover:text-blush-600 font-body transition-colors">All Products</Link></li>
             </ul>
           </div>
 
           {/* Help */}
           <div>
-            <h4 className="font-body font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Help</h4>
-            <ul className="space-y-2">
-              <li><Link to="/track-order" className="text-sm text-gray-500 hover:text-blush-600 font-body transition-colors">Track Order</Link></li>
-              <li><a href="mailto:vinozfasion@gmail.com" className="text-sm text-gray-500 hover:text-blush-600 font-body transition-colors">Contact Us</a></li>
-              <li><a href="#faq" className="text-sm text-gray-500 hover:text-blush-600 font-body transition-colors">FAQ</a></li>
+            <h3 className="font-display text-lg text-gray-800 mb-4">Help</h3>
+            <ul className="space-y-3">
+              {helpLinks.map(link => (
+                <li key={link.label}>
+                  <Link to={link.path} className="text-sm text-gray-600 hover:text-blush-600 transition-colors">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* Contact */}
           <div>
-            <h4 className="font-body font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Contact</h4>
-            <ul className="space-y-2.5">
-              <li className="flex items-center gap-2 text-sm text-gray-500 font-body">
-                <Phone size={14} className="text-blush-400 flex-shrink-0" />
-                +91 98765 43210
+            <h3 className="font-display text-lg text-gray-800 mb-4">Contact Us</h3>
+            <ul className="space-y-4">
+              <li className="flex items-start gap-3 text-sm text-gray-600">
+                <Phone size={18} className="text-blush-500 mt-0.5 shrink-0" />
+                <span>+91 7397056923<br /><span className="text-xs text-gray-500">Mon-Sat, 9AM-6PM</span></span>
               </li>
-              <li className="flex items-center gap-2 text-sm text-gray-500 font-body">
-                <Mail size={14} className="text-blush-400 flex-shrink-0" />
-                hello@vinozfashion.com
+              <li className="flex items-start gap-3 text-sm text-gray-600">
+                <Mail size={18} className="text-blush-500 mt-0.5 shrink-0" />
+                <a href="mailto:support@vinozfashion.com" className="hover:text-blush-600">vinozfasion@gmail.com</a>
               </li>
-              <li className="flex items-start gap-2 text-sm text-gray-500 font-body">
-                <MapPin size={14} className="text-blush-400 flex-shrink-0 mt-0.5" />
-                Tamil Nadu, India
+              <li className="flex items-start gap-3 text-sm text-gray-600">
+                <MapPin size={18} className="text-blush-500 mt-0.5 shrink-0" />
+                <span>Coimbatore<br />Tamil Nadu 600001</span>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="border-t border-blush-200 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center gap-3">
-          <p className="text-xs text-gray-400 font-body">
-            © 2026 Vino'z Fashion. All rights reserved.
+        {/* Bottom Bar */}
+        <div className="pt-8 border-t border-blush-200 flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-sm text-gray-500">
+            © {new Date().getFullYear()} Vino'z Fashion. All rights reserved.
           </p>
-          <p className="text-xs text-gray-400 font-body flex items-center gap-1">
-            Made with <Heart size={11} className="text-blush-400 inline" /> in India
-          </p>
-          <div className="flex gap-4">
-            <span className="text-xs text-gray-400 font-body">Secure payments by</span>
-            <span className="text-xs font-semibold text-blush-500 font-body">Razorpay</span>
+          <div className="flex items-center gap-6">
+            <span className="text-sm text-gray-500 font-medium">Made with <span className="text-rose-500">♥</span> in India</span>
+            <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-lg border border-gray-200 shadow-sm text-xs text-gray-600 font-medium tracking-wide">
+              🔒 Secured by Razorpay
+            </div>
           </div>
         </div>
       </div>

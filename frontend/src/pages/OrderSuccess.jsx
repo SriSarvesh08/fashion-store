@@ -1,63 +1,71 @@
-// ─── OrderSuccess.jsx ─────────────────────────────────────────────────────
-import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { CheckCircle, Package, ArrowRight } from 'lucide-react';
-import { ordersApi } from '../utils/api';
+import React, { useEffect } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { CheckCircle2, ArrowRight } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
-export function OrderSuccess() {
+export default function OrderSuccess() {
   const { orderId } = useParams();
-  const [order, setOrder] = useState(null);
 
   useEffect(() => {
-    ordersApi.track(orderId).then(res => setOrder(res.data)).catch(() => {});
-  }, [orderId]);
+    // Fire confetti on mount
+    const duration = 3 * 1000;
+    const end = Date.now() + duration;
+
+    const frame = () => {
+      confetti({
+        particleCount: 5,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors: ['#c9748f', '#e8a4b8', '#a8516e']
+      });
+      confetti({
+        particleCount: 5,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors: ['#c9748f', '#e8a4b8', '#a8516e']
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+    frame();
+  }, []);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 animate-fade-in">
-      <div className="max-w-md w-full text-center">
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <CheckCircle size={40} className="text-green-500" />
-        </div>
-        <h1 className="font-display text-3xl text-gray-800 mb-2">Order Placed! 🎉</h1>
-        <p className="text-gray-500 font-body mb-6">Thank you! Your order has been confirmed.</p>
-
-        <div className="card p-6 mb-6 text-left">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-gray-500 font-body">Order ID</p>
-            <p className="font-body font-bold text-blush-700 text-lg">#{orderId}</p>
-          </div>
-          {order && (
-            <>
-              <div className="flex justify-between text-sm font-body text-gray-500 mb-1">
-                <span>Payment</span>
-                <span className="capitalize font-medium text-gray-700">
-                  Online Payment
-                </span>
-              </div>
-              <div className="flex justify-between text-sm font-body text-gray-500">
-                <span>Total</span>
-                <span className="font-semibold text-blush-700">₹{order.pricing?.total?.toLocaleString('en-IN')}</span>
-              </div>
-              {order.customer?.email && (
-                <p className="text-xs text-gray-400 font-body mt-4 text-center">
-                  Confirmation sent to {order.customer.email}
-                </p>
-              )}
-            </>
-          )}
+    <div className="min-h-[70vh] flex flex-col items-center justify-center p-4 bg-gray-50/50">
+      <div className="bg-white p-8 md:p-12 rounded-3xl shadow-sm border border-gray-100 max-w-lg w-full text-center animate-slide-up">
+        
+        <div className="w-24 h-24 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+          <CheckCircle2 size={48} />
         </div>
 
-        <div className="flex gap-3 justify-center">
-          <Link to="/track-order" className="btn-outline flex items-center gap-2">
-            <Package size={16} /> Track Order
+        <h1 className="font-display text-4xl text-gray-900 mb-4">Order Placed! 🎉</h1>
+        
+        <p className="text-gray-600 mb-6 font-body text-lg">
+          Thank you for shopping with us. Your order has been received and is being processed.
+        </p>
+
+        <div className="bg-blush-50 border border-blush-100 rounded-2xl p-6 mb-8">
+          <p className="text-sm text-blush-700 font-bold uppercase tracking-wide mb-1">Order ID</p>
+          <p className="font-display text-2xl text-blush-900 font-bold">{orderId}</p>
+        </div>
+
+        <p className="text-sm text-gray-500 mb-10">
+          We'll send you an email confirmation with order details and tracking info shortly.
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link to="/track-order" className="btn-outline flex items-center justify-center gap-2">
+            Track Order
           </Link>
-          <Link to="/products" className="btn-primary flex items-center gap-2">
-            Shop More <ArrowRight size={16} />
+          <Link to="/products" className="btn-primary flex items-center justify-center gap-2">
+            Continue Shopping <ArrowRight size={18} />
           </Link>
         </div>
       </div>
     </div>
   );
 }
-
-export default OrderSuccess;
